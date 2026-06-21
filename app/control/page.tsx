@@ -34,12 +34,15 @@ import {
   createId,
   createSavedGame,
   fetchServerGame,
+  getCurrentGameAccess,
   getCurrentGameId,
+  hydrateGameAccessFromUrl,
   loadGame,
   pushServerGame,
   saveGame,
   subscribeToGame,
   updateGame,
+  type GameAccess,
   type CommanderGame,
   type CommanderPlayer
 } from "@/lib/game-state";
@@ -49,10 +52,17 @@ export default function ControlPage() {
   const [serverStatus, setServerStatus] = useState("Local state loaded");
   const [chromeOpen, setChromeOpen] = useState(false);
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
+  const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
+    gameId: null,
+    displayToken: null,
+    controlToken: null
+  }));
 
   useEffect(() => {
     let mounted = true;
-    setSavedGameId(getCurrentGameId());
+    const access = hydrateGameAccessFromUrl();
+    setGameAccess(access);
+    setSavedGameId(access.gameId ?? getCurrentGameId());
     void fetchServerGame()
       .then((serverGame) => {
         if (!mounted) {
@@ -265,6 +275,7 @@ export default function ControlPage() {
       const name = game.players.map((player) => player.name).join(" vs ").slice(0, 80) || "Commander Game";
       const saved = await createSavedGame(game, name);
       setSavedGameId(saved.id);
+      setGameAccess(getCurrentGameAccess());
       setServerStatus("Saved to Supabase");
     } catch {
       setServerStatus("Login required to save games");
@@ -276,8 +287,24 @@ export default function ControlPage() {
     if (typeof window === "undefined") {
       return "/display";
     }
-    return `${window.location.origin}/display`;
-  }, []);
+    const token = gameAccess.displayToken ?? gameAccess.controlToken;
+    if (!gameAccess.gameId || !token) {
+      return `${window.location.origin}/display`;
+    }
+
+    return `${window.location.origin}/display?gameId=${encodeURIComponent(gameAccess.gameId)}&token=${encodeURIComponent(token)}`;
+  }, [gameAccess.controlToken, gameAccess.displayToken, gameAccess.gameId]);
+
+  const tabletUrl = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "/tablet";
+    }
+    if (!gameAccess.gameId || !gameAccess.controlToken) {
+      return `${window.location.origin}/tablet`;
+    }
+
+    return `${window.location.origin}/tablet?gameId=${encodeURIComponent(gameAccess.gameId)}&token=${encodeURIComponent(gameAccess.controlToken)}`;
+  }, [gameAccess.controlToken, gameAccess.gameId]);
 
   return (
     <main className="safe-screen relative overflow-hidden bg-background">
@@ -304,7 +331,7 @@ export default function ControlPage() {
                 <span className="hidden sm:inline">Reset</span>
               </Button>
               <Button asChild size="sm" variant="secondary">
-                <Link href="/tablet">
+                <Link href={tabletUrl}>
                   <Tablet className="h-4 w-4" />
                   <span className="hidden sm:inline">Mode</span>
                 </Link>
@@ -320,7 +347,7 @@ export default function ControlPage() {
             <div className="grid gap-3 border-t border-border p-2 sm:p-3">
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <Button asChild variant="outline">
-                  <Link href="/display" target="_blank">
+                  <Link href={displayUrl} target="_blank">
                     <Monitor className="h-4 w-4" />
                     Open TV
                   </Link>
@@ -362,6 +389,10 @@ export default function ControlPage() {
               <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:justify-self-stretch">
                 <summary className="cursor-pointer font-semibold text-foreground">TV URL</summary>
                 <div className="mt-1 break-all font-mono text-xs text-foreground">{displayUrl}</div>
+              </details>
+              <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:justify-self-stretch">
+                <summary className="cursor-pointer font-semibold text-foreground">Tablet URL</summary>
+                <div className="mt-1 break-all font-mono text-xs text-foreground">{tabletUrl}</div>
               </details>
               <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

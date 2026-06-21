@@ -1,12 +1,14 @@
 "use client";
 
-import { createDefaultGame, createId, hydrateCommanderDamage, type CommanderGame } from "@/lib/commander";
+import { createAccessToken, createDefaultGame, createId, hydrateCommanderDamage, type CommanderGame } from "@/lib/commander";
 
-export { createDefaultGame, createId };
+export { createAccessToken, createDefaultGame, createId };
 export type { CommanderGame, CommanderPlayer } from "@/lib/commander";
 
 const STORAGE_KEY = "commander-tv-game";
 const GAME_ID_KEY = "commander-tv-game-id";
+const DISPLAY_TOKEN_KEY = "commander-tv-display-token";
+const CONTROL_TOKEN_KEY = "commander-tv-control-token";
 const CHANNEL_NAME = "commander-tv-sync";
 let channel: BroadcastChannel | null = null;
 
@@ -14,8 +16,16 @@ export type SavedGameSummary = {
   id: string;
   name: string;
   is_active: boolean;
+  display_token: string;
+  control_token: string;
   created_at: string;
   updated_at: string;
+};
+
+export type GameAccess = {
+  gameId: string | null;
+  displayToken: string | null;
+  controlToken: string | null;
 };
 
 export function loadGame(): CommanderGame {
@@ -52,21 +62,73 @@ export function getCurrentGameId() {
   return window.localStorage.getItem(GAME_ID_KEY);
 }
 
+export function getCurrentGameAccess(): GameAccess {
+  if (typeof window === "undefined") {
+    return { gameId: null, displayToken: null, controlToken: null };
+  }
+
+  return {
+    gameId: window.localStorage.getItem(GAME_ID_KEY),
+    displayToken: window.localStorage.getItem(DISPLAY_TOKEN_KEY),
+    controlToken: window.localStorage.getItem(CONTROL_TOKEN_KEY)
+  };
+}
+
 export function setCurrentGameId(gameId: string | null) {
+  setCurrentGameAccess({ gameId, displayToken: null, controlToken: null });
+}
+
+export function setCurrentGameAccess(access: Partial<GameAccess>) {
   if (typeof window === "undefined") {
     return;
   }
 
-  if (gameId) {
-    window.localStorage.setItem(GAME_ID_KEY, gameId);
+  if (access.gameId) {
+    window.localStorage.setItem(GAME_ID_KEY, access.gameId);
   } else {
     window.localStorage.removeItem(GAME_ID_KEY);
   }
+
+  if (access.displayToken) {
+    window.localStorage.setItem(DISPLAY_TOKEN_KEY, access.displayToken);
+  } else if ("displayToken" in access) {
+    window.localStorage.removeItem(DISPLAY_TOKEN_KEY);
+  }
+
+  if (access.controlToken) {
+    window.localStorage.setItem(CONTROL_TOKEN_KEY, access.controlToken);
+  } else if ("controlToken" in access) {
+    window.localStorage.removeItem(CONTROL_TOKEN_KEY);
+  }
+}
+
+export function hydrateGameAccessFromUrl() {
+  if (typeof window === "undefined") {
+    return getCurrentGameAccess();
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const gameId = params.get("gameId") ?? params.get("game");
+  const token = params.get("token");
+
+  if (gameId) {
+    const current = getCurrentGameAccess();
+    const sameGame = current.gameId === gameId;
+    const isDisplayRoute = window.location.pathname.startsWith("/display");
+    const isControlRoute = window.location.pathname.startsWith("/control") || window.location.pathname.startsWith("/tablet");
+
+    setCurrentGameAccess({
+      gameId,
+      displayToken: token && isDisplayRoute ? token : sameGame ? current.displayToken : null,
+      controlToken: token && isControlRoute ? token : sameGame ? current.controlToken : null
+    });
+  }
+
+  return getCurrentGameAccess();
 }
 
 export async function fetchServerGame() {
-  const gameId = getCurrentGameId();
-  const response = await fetch(`/api/game${gameId ? `?gameId=${gameId}` : ""}`, { cache: "no-store" });
+  const response = await fetch(`/api/game${buildGameQuery(false)}`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Unable to load game state");
   }
@@ -74,8 +136,7 @@ export async function fetchServerGame() {
 }
 
 export async function pushServerGame(game: CommanderGame) {
-  const gameId = getCurrentGameId();
-  const response = await fetch(`/api/game${gameId ? `?gameId=${gameId}` : ""}`, {
+  const response = await fetch(`/api/game${buildGameQuery(true)}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -113,8 +174,12 @@ export async function createSavedGame(game: CommanderGame, name = "Commander Gam
     throw new Error("Unable to create saved game");
   }
 
-  const result = (await response.json()) as { id: string; state: CommanderGame };
-  setCurrentGameId(result.id);
+  const result = (await response.json()) as { id: string; state: CommanderGame; display_token?: string; control_token?: string };
+  setCurrentGameAccess({
+    gameId: result.id,
+    displayToken: result.display_token ?? null,
+    controlToken: result.control_token ?? null
+  });
   return result;
 }
 
@@ -144,4 +209,21 @@ function getChannel() {
 
   channel ??= new BroadcastChannel(CHANNEL_NAME);
   return channel;
+}
+
+function buildGameQuery(write: boolean) {
+  const access = getCurrentGameAccess();
+  const params = new URLSearchParams();
+
+  if (access.gameId) {
+    params.set("gameId", access.gameId);
+  }
+
+  const token = write ? access.controlToken : access.displayToken ?? access.controlToken;
+  if (token) {
+    params.set("token", token);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }

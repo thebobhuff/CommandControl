@@ -23,11 +23,14 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
+  getCurrentGameAccess,
+  hydrateGameAccessFromUrl,
   loadGame,
   pushServerGame,
   saveGame,
   subscribeToGame,
   updateGame,
+  type GameAccess,
   type CommanderGame,
   type CommanderPlayer
 } from "@/lib/game-state";
@@ -36,10 +39,17 @@ import { cn } from "@/lib/utils";
 export default function TabletPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
   const [connected, setConnected] = useState(false);
+  const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
+    gameId: null,
+    displayToken: null,
+    controlToken: null
+  }));
   const [, setClockTick] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    const access = hydrateGameAccessFromUrl();
+    setGameAccess(access);
 
     void fetchServerGame()
       .then((serverGame) => {
@@ -198,6 +208,23 @@ export default function TabletPage() {
   }, [game.players.length]);
 
   const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
+  const displayUrl = useMemo(() => {
+    const token = gameAccess.displayToken ?? gameAccess.controlToken;
+    if (!gameAccess.gameId || !token) {
+      return "/display";
+    }
+
+    return `/display?gameId=${encodeURIComponent(gameAccess.gameId)}&token=${encodeURIComponent(token)}`;
+  }, [gameAccess.controlToken, gameAccess.displayToken, gameAccess.gameId]);
+
+  const controlUrl = useMemo(() => {
+    const access = gameAccess.gameId ? gameAccess : getCurrentGameAccess();
+    if (!access.gameId || !access.controlToken) {
+      return "/control";
+    }
+
+    return `/control?gameId=${encodeURIComponent(access.gameId)}&token=${encodeURIComponent(access.controlToken)}`;
+  }, [gameAccess]);
 
   return (
     <main className="safe-screen bg-black text-foreground">
@@ -226,12 +253,12 @@ export default function TabletPage() {
             <Timer className="h-4 w-4" />
           </Button>
           <Button asChild variant="ghost" size="icon">
-            <Link href="/display" aria-label="Open TV display">
+            <Link href={displayUrl} aria-label="Open TV display">
               <Monitor className="h-4 w-4" />
             </Link>
           </Button>
           <Button asChild variant="ghost" size="icon">
-            <Link href="/control" aria-label="Open setup controls">
+            <Link href={controlUrl} aria-label="Open setup controls">
               <Settings className="h-4 w-4" />
             </Link>
           </Button>

@@ -9,6 +9,7 @@ import {
   createDefaultGame,
   createSavedGame,
   fetchSavedGames,
+  setCurrentGameAccess,
   setCurrentGameId,
   type SavedGameSummary
 } from "@/lib/game-state";
@@ -105,7 +106,11 @@ export default function GamesPage() {
                 type="button"
                 className="rounded-lg border border-border bg-card p-4 text-left transition hover:border-primary"
                 onClick={() => {
-                  setCurrentGameId(game.id);
+                  setCurrentGameAccess({
+                    gameId: game.id,
+                    displayToken: game.display_token,
+                    controlToken: game.control_token
+                  });
                   window.location.href = "/control";
                 }}
               >
