@@ -1,0 +1,72 @@
+import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: [
+    "./app/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./lib/**/*.{ts,tsx}"
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ["Cinzel", "serif"]
+      },
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))"
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))"
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))"
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))"
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))"
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))"
+        }
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)"
+      },
+      keyframes: {
+        beam: {
+          "0%": { transform: "translateX(-30%) translateY(-10%) rotate(12deg)" },
+          "50%": { transform: "translateX(30%) translateY(8%) rotate(12deg)" },
+          "100%": { transform: "translateX(-30%) translateY(-10%) rotate(12deg)" }
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% center" },
+          "100%": { backgroundPosition: "-200% center" }
+        }
+      },
+      animation: {
+        beam: "beam 14s ease-in-out infinite",
+        shimmer: "shimmer 3s linear infinite"
+      }
+    }
+  },
+  plugins: [animate]
+};
+
+export default config;
