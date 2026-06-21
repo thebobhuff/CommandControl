@@ -6,6 +6,7 @@ import { Crown, Dices, Gem, Moon, Skull, Slash, Sparkles, Star, Sun, TabletSmart
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
+  hydrateGameAccessFromUrl,
   loadGame,
   saveGame,
   subscribeToGame,
@@ -21,6 +22,7 @@ export default function DisplayPage() {
 
   useEffect(() => {
     let mounted = true;
+    hydrateGameAccessFromUrl();
 
     const refresh = () => {
       void fetchServerGame()

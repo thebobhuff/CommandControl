@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Gamepad2, Monitor, Save, Tablet, TabletSmartphone } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
+import { ActiveGamesList } from "@/components/active-games-list";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -46,6 +47,7 @@ export default function Home() {
             </Link>
           </Button>
         </div>
+        <ActiveGamesList />
       </section>
     </main>
   );

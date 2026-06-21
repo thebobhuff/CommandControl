@@ -50,6 +50,16 @@ export function createId() {
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+export function createAccessToken() {
+  const browserCrypto = globalThis.crypto;
+  const bytes =
+    typeof browserCrypto?.getRandomValues === "function"
+      ? browserCrypto.getRandomValues(new Uint8Array(24))
+      : Uint8Array.from({ length: 24 }, () => Math.floor(Math.random() * 256));
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function createDefaultGame(): CommanderGame {
   const players = defaultNames.map((name) => ({
     id: createId(),

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createDefaultGame } from "@/lib/commander";
+import { createAccessToken, createDefaultGame } from "@/lib/commander";
 import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("commander_games")
-    .select("id,name,is_active,created_at,updated_at")
+    .select("id,name,is_active,display_token,control_token,created_at,updated_at")
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -40,15 +40,19 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const state = body.state ?? createDefaultGame();
   const name = body.name ?? "Commander Game";
+  const displayToken = createAccessToken();
+  const controlToken = createAccessToken();
 
   const { data, error } = await supabase
     .from("commander_games")
     .insert({
       owner_id: user.id,
       name,
-      state
+      state,
+      display_token: displayToken,
+      control_token: controlToken
     })
-    .select("id,name,state,created_at,updated_at")
+    .select("id,name,state,display_token,control_token,created_at,updated_at")
     .single();
 
   if (error) {
