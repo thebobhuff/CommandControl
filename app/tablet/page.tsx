@@ -227,7 +227,7 @@ export default function TabletPage() {
   }, [gameAccess]);
 
   return (
-    <main className="safe-screen bg-black text-foreground">
+    <main className="safe-screen flex flex-col bg-black text-foreground">
       <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-white/10 bg-black/80 px-2 py-2 backdrop-blur sm:px-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
@@ -236,22 +236,6 @@ export default function TabletPage() {
           </span>
         </div>
         <div className="flex shrink-0 gap-1 sm:gap-2">
-          <Button variant="outline" size="sm" onClick={resetLifeTotals}>
-            <RotateCcw className="h-4 w-4" />
-            <span className="hidden sm:inline">Reset</span>
-          </Button>
-          <Button variant="ghost" size="icon" onClick={cycleDayNight} aria-label="Toggle day and night">
-            {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={chooseRandomPlayer} aria-label="Choose random player">
-            <Sparkles className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={rollD20} aria-label="Roll d20">
-            <Dices className="h-4 w-4" />
-          </Button>
-          <Button variant={game.timerStartedAt ? "secondary" : "ghost"} size="icon" onClick={toggleTimer} aria-label="Toggle turn timer">
-            <Timer className="h-4 w-4" />
-          </Button>
           <Button asChild variant="ghost" size="icon">
             <Link href={displayUrl} aria-label="Open TV display">
               <Monitor className="h-4 w-4" />
@@ -265,23 +249,128 @@ export default function TabletPage() {
         </div>
       </header>
 
-      <section className={cn("grid min-h-[calc(100vh-57px)] min-h-[calc(100svh-57px)] auto-rows-fr gap-1 p-1", gridClass)}>
-        {game.players.map((player) => (
-          <TabletPlayerPanel
-            key={player.id}
-            player={player}
-            players={game.players}
-            isActive={game.activePlayerId === player.id}
-            isRandom={game.randomPlayerId === player.id}
-            onLife={adjustLife}
-            onPoison={adjustPoison}
-            onCommanderDamage={adjustCommanderDamage}
-            onCounter={adjustPlayerCounter}
-            onStatus={togglePlayerStatus}
+      <div className="flex min-h-0 flex-1 flex-col gap-1 p-1 md:flex-row">
+        <aside className="md:w-80 lg:w-88 xl:w-96 md:shrink-0">
+          <TabletControlRail
+            game={game}
+            connected={connected}
+            timerSeconds={timerSeconds}
+            onResetLifeTotals={resetLifeTotals}
+            onCycleDayNight={cycleDayNight}
+            onChooseRandomPlayer={chooseRandomPlayer}
+            onRollD20={rollD20}
+            onToggleTimer={toggleTimer}
+            displayUrl={displayUrl}
+            controlUrl={controlUrl}
           />
-        ))}
-      </section>
+        </aside>
+        <section className={cn("grid min-h-[calc(100vh-57px)] min-h-[calc(100svh-57px)] flex-1 auto-rows-fr gap-1 md:min-h-0", gridClass)}>
+          {game.players.map((player) => (
+            <TabletPlayerPanel
+              key={player.id}
+              player={player}
+              players={game.players}
+              isActive={game.activePlayerId === player.id}
+              isRandom={game.randomPlayerId === player.id}
+              onLife={adjustLife}
+              onPoison={adjustPoison}
+              onCommanderDamage={adjustCommanderDamage}
+              onCounter={adjustPlayerCounter}
+              onStatus={togglePlayerStatus}
+            />
+          ))}
+        </section>
+      </div>
     </main>
+  );
+}
+
+function TabletControlRail({
+  game,
+  connected,
+  timerSeconds,
+  onResetLifeTotals,
+  onCycleDayNight,
+  onChooseRandomPlayer,
+  onRollD20,
+  onToggleTimer,
+  displayUrl,
+  controlUrl
+}: {
+  game: CommanderGame;
+  connected: boolean;
+  timerSeconds: number;
+  onResetLifeTotals: () => void;
+  onCycleDayNight: () => void;
+  onChooseRandomPlayer: () => void;
+  onRollD20: () => void;
+  onToggleTimer: () => void;
+  displayUrl: string;
+  controlUrl: string;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-md border border-white/10 bg-black/70 p-2 backdrop-blur sm:p-3">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Tablet Controls</p>
+          <p className="truncate text-sm font-black text-white/90">
+            {connected ? "Live Session" : "Offline Session"}
+          </p>
+        </div>
+        <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="justify-start">
+          <RotateCcw className="h-4 w-4" />
+          Reset
+        </Button>
+        <Button variant={game.timerStartedAt ? "secondary" : "outline"} size="sm" onClick={onToggleTimer} className="justify-start">
+          <Timer className="h-4 w-4" />
+          {game.timerStartedAt ? "Pause" : "Timer"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onCycleDayNight} className="justify-start">
+          {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          {game.dayNight ?? "Day/Night"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onChooseRandomPlayer} className="justify-start">
+          <Sparkles className="h-4 w-4" />
+          Random
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRollD20} className="justify-start">
+          <Dices className="h-4 w-4" />
+          d20 {game.diceRoll ? game.diceRoll : ""}
+        </Button>
+        <Button asChild variant="outline" size="sm" className="justify-start">
+          <Link href={displayUrl} aria-label="Open TV display">
+            <Monitor className="h-4 w-4" />
+            TV
+          </Link>
+        </Button>
+      </div>
+
+      <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
+        <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Status</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-black">
+          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{game.dayNight ?? "No day/night"}</span>
+          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{timerSeconds ? formatDuration(timerSeconds) : "0:00"}</span>
+          <span className="rounded-md bg-black/45 px-2 py-2 text-center">d20 {game.diceRoll ?? "-"}</span>
+          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{game.randomPlayerId ? "Pick set" : "No pick"}</span>
+        </div>
+      </div>
+
+      <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
+        <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Links</p>
+        <div className="mt-2 grid gap-2">
+          <Button asChild variant="ghost" size="sm" className="justify-start">
+            <Link href={controlUrl} aria-label="Open setup controls">
+              <Settings className="h-4 w-4" />
+              Control
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
