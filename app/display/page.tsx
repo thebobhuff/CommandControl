@@ -68,8 +68,15 @@ export default function DisplayPage() {
   const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
 
   return (
-    <main className="fixed-screen overflow-hidden bg-black text-foreground">
-      <div className={cn("grid h-full auto-rows-fr gap-1 p-1", gridClass)}>
+    <main className="fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
+      <GameStatusBar
+        game={game}
+        connected={connected}
+        activePlayer={activePlayer}
+        randomPlayer={randomPlayer}
+        timerSeconds={timerSeconds}
+      />
+      <div className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1 p-1", gridClass)}>
         {game.players.map((player) => (
           <PlayerDisplay
             key={player.id}
@@ -81,36 +88,85 @@ export default function DisplayPage() {
           />
         ))}
       </div>
-      <div className="fixed left-2 top-2 flex max-w-[calc(100vw-5rem)] items-center gap-2 rounded-md border border-white/10 bg-black/45 px-2 py-1.5 text-[10px] text-white/80 backdrop-blur sm:left-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs">
-        <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
-        <span>{connected ? "Live" : "Offline"}</span>
-        {game.dayNight ? (
-          <span className="flex items-center gap-1">
-            {game.dayNight === "night" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-            {game.dayNight}
-          </span>
-        ) : null}
-        {activePlayer ? <span className="truncate">Turn: {activePlayer.name}</span> : null}
-        {randomPlayer ? <span className="truncate">Pick: {randomPlayer.name}</span> : null}
-        {game.diceRoll ? (
-          <span className="flex items-center gap-1">
-            <Dices className="h-3 w-3" />
-            {game.diceRoll}
-          </span>
-        ) : null}
-        {timerSeconds ? (
-          <span className="flex items-center gap-1">
-            <Timer className="h-3 w-3" />
-            {formatDuration(timerSeconds)}
-          </span>
-        ) : null}
+    </main>
+  );
+}
+
+function GameStatusBar({
+  game,
+  connected,
+  activePlayer,
+  randomPlayer,
+  timerSeconds
+}: {
+  game: CommanderGame;
+  connected: boolean;
+  activePlayer?: CommanderPlayer;
+  randomPlayer?: CommanderPlayer;
+  timerSeconds: number;
+}) {
+  const monarch = game.players.find((player) => player.isMonarch);
+  const initiative = game.players.find((player) => player.hasInitiative);
+  const cityBlessed = game.players.filter((player) => player.hasCityBlessing);
+  const cityLabel =
+    cityBlessed.length === 0
+      ? null
+      : cityBlessed.length === 1
+        ? cityBlessed[0].name
+        : `${cityBlessed.length} players`;
+
+  return (
+    <header className="relative z-40 flex h-16 shrink-0 items-center gap-3 border-b border-white/10 bg-zinc-950/95 px-3 text-white shadow-[0_12px_36px_rgba(0,0,0,0.38)] screen-text-shadow sm:h-20 sm:px-5">
+      <div className="flex h-full shrink-0 items-center gap-3 border-r border-white/10 pr-3 sm:pr-5">
+        <span className={cn("h-2.5 w-2.5 rounded-full shadow-[0_0_14px_currentColor]", connected ? "bg-emerald-400 text-emerald-400" : "bg-destructive text-destructive")} />
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-white/45 sm:text-xs">Commander Control</p>
+          <p className="text-sm font-black sm:text-lg">{connected ? "Live Game" : "Offline Display"}</p>
+        </div>
       </div>
-      <Button asChild size="icon" variant="ghost" className="fixed right-2 top-2 bg-black/35 text-white hover:bg-black/60 sm:right-4 sm:top-4">
+
+      <div
+        className={cn(
+          "flex h-11 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-black uppercase sm:h-14 sm:px-4 sm:text-xl",
+          game.dayNight === "night"
+            ? "bg-indigo-500/20 text-indigo-100 ring-1 ring-indigo-300/35"
+            : game.dayNight === "day"
+              ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-200/35"
+              : "bg-white/10 text-white/70 ring-1 ring-white/10"
+        )}
+      >
+        {game.dayNight === "night" ? <Moon className="h-5 w-5 sm:h-7 sm:w-7" /> : <Sun className="h-5 w-5 sm:h-7 sm:w-7" />}
+        {game.dayNight ?? "Day/Night"}
+      </div>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        {activePlayer ? <StatusItem label="Turn" value={activePlayer.name} /> : null}
+        <StatusItem label={game.timerStartedAt ? "Timer Running" : "Timer"} value={timerSeconds ? formatDuration(timerSeconds) : "0:00"} icon={<Timer className="h-4 w-4" />} />
+        {randomPlayer ? <StatusItem label="Pick" value={randomPlayer.name} /> : null}
+        {game.diceRoll ? <StatusItem label="d20" value={game.diceRoll.toString()} icon={<Dices className="h-4 w-4" />} /> : null}
+        {monarch ? <StatusItem label="Monarch" value={monarch.name} icon={<Crown className="h-4 w-4" />} /> : null}
+        {initiative ? <StatusItem label="Initiative" value={initiative.name} icon={<Sparkles className="h-4 w-4" />} /> : null}
+        {cityLabel ? <StatusItem label="City Blessing" value={cityLabel} icon={<Trophy className="h-4 w-4" />} /> : null}
+      </div>
+
+      <Button asChild size="icon" variant="ghost" className="h-11 w-11 shrink-0 bg-white/5 text-white hover:bg-white/10 sm:h-12 sm:w-12">
         <Link href="/control" aria-label="Open tablet controls">
           <TabletSmartphone className="h-5 w-5" />
         </Link>
       </Button>
-    </main>
+    </header>
+  );
+}
+
+function StatusItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-md border border-white/10 bg-white/[0.07] px-3 backdrop-blur sm:h-14 sm:px-4">
+      {icon ? <span className="shrink-0 text-primary">{icon}</span> : null}
+      <div className="min-w-0">
+        <p className="text-[9px] font-black uppercase tracking-wider text-white/45 sm:text-[10px]">{label}</p>
+        <p className="max-w-28 truncate text-sm font-black leading-tight sm:max-w-40 sm:text-lg">{value}</p>
+      </div>
+    </div>
   );
 }
 
@@ -191,11 +247,11 @@ function PlayerDisplay({
         />
       ) : null}
       <div className="relative z-10 flex w-full flex-col justify-between gap-3 p-3 screen-text-shadow sm:p-4 lg:p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-[clamp(1.7rem,4.6vw,4rem)] font-black leading-none">{player.name}</h2>
+            <h2 className="truncate text-[clamp(1.35rem,3.4vw,3rem)] font-black leading-none">{player.name}</h2>
             {player.commanderName || player.backgroundCardName ? (
-              <p className="mt-2 truncate text-sm font-semibold uppercase tracking-wider text-primary">
+              <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wider text-primary lg:text-sm">
                 {player.commanderName || player.backgroundCardName}
                 {player.partnerCommanderName ? ` / ${player.partnerCommanderName}` : ""}
               </p>
@@ -234,19 +290,19 @@ function PlayerDisplay({
           </div>
           <div
             className={cn(
-              "mb-1 grid shrink-0 gap-1.5 md:mb-4 md:gap-2",
-              compact ? "w-[min(15rem,34vw)]" : "w-[min(18rem,42vw)]"
+              "mb-1 grid shrink-0 gap-1 md:mb-4 md:gap-1.5",
+              compact ? "w-[min(8.5rem,24vw)]" : "w-[min(9.75rem,28vw)]"
             )}
           >
             <div
               className={cn(
-                "relative flex items-center justify-between rounded-md bg-black/45 px-3 py-2 backdrop-blur lg:px-4 lg:py-3",
+                "relative flex items-center justify-between rounded-md bg-black/45 px-3 py-2 backdrop-blur lg:px-4",
                 poisonBurst && "poison-pulse"
               )}
+              title="Poison"
             >
-              <span className="flex items-center gap-2 text-sm font-semibold lg:text-lg">
-                <Skull className="h-4 w-4 text-emerald-300 lg:h-5 lg:w-5" />
-                Poison
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-300/25 lg:h-9 lg:w-9">
+                <Skull className="h-5 w-5 lg:h-6 lg:w-6" />
               </span>
               <span className="text-2xl font-black lg:text-3xl">{player.poison}</span>
               {poisonBurst ? (
@@ -261,13 +317,12 @@ function PlayerDisplay({
             </div>
             {players
               .filter((source) => source.id !== player.id)
-              .map((source) => (
-                <div key={source.id} className="flex items-center justify-between gap-2 rounded-md bg-black/45 px-3 py-1.5 backdrop-blur lg:gap-4 lg:px-4 lg:py-2">
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold lg:gap-2 lg:text-sm">
-                    <Crown className="h-4 w-4 text-primary" />
-                    <span className="truncate">{source.name}</span>
+              .map((source, index) => (
+                <div key={source.id} className="flex items-center justify-between gap-2 rounded-md bg-black/45 px-2.5 py-1.5 backdrop-blur lg:px-3" title={`Commander damage from ${source.name}`}>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-xs font-black text-primary ring-1 ring-primary/30 lg:h-8 lg:w-8 lg:text-sm">
+                    P{index + 1}
                   </span>
-                  <span className={cn("text-xl font-black lg:text-2xl", (player.commanderDamage[source.id] ?? 0) >= 15 && "text-primary")}>
+                  <span className={cn("text-xl font-black leading-none lg:text-2xl", (player.commanderDamage[source.id] ?? 0) >= 15 && "text-primary")}>
                     {player.commanderDamage[source.id] ?? 0}
                   </span>
                 </div>
