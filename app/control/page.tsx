@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronDown,
-  ChevronUp,
   Crown,
   Dices,
   Gem,
@@ -50,7 +48,6 @@ import {
 export default function ControlPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
   const [serverStatus, setServerStatus] = useState("Local state loaded");
-  const [chromeOpen, setChromeOpen] = useState(false);
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
@@ -279,7 +276,6 @@ export default function ControlPage() {
       setServerStatus("Saved to Supabase");
     } catch {
       setServerStatus("Login required to save games");
-      setChromeOpen(true);
     }
   }
 
@@ -309,136 +305,32 @@ export default function ControlPage() {
   return (
     <main className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-3 px-2 py-2 sm:px-3">
-        <header className="sticky top-0 z-30 rounded-lg border border-border bg-background/85 backdrop-blur">
-          <div className="flex min-h-12 items-center justify-between gap-2 px-2 py-2 sm:px-3">
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              onClick={() => setChromeOpen((open) => !open)}
-              aria-expanded={chromeOpen}
-            >
-              <TabletSmartphone className="h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0">
-                <div className="truncate text-sm font-black uppercase tracking-wider">Control</div>
-                <div className="truncate text-xs text-muted-foreground">{serverStatus}</div>
-              </div>
-              {chromeOpen ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
-            </button>
-            <div className="flex shrink-0 gap-1">
-              <Button variant="outline" size="sm" onClick={resetLifeTotals}>
-                <RotateCcw className="h-4 w-4" />
-                <span className="hidden sm:inline">Reset</span>
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <Link href={tabletUrl}>
-                  <Tablet className="h-4 w-4" />
-                  <span className="hidden sm:inline">Mode</span>
-                </Link>
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => void saveCurrentGame()}>
-                <Save className="h-4 w-4" />
-                <span className="hidden sm:inline">{savedGameId ? "Saved" : "Save"}</span>
-              </Button>
-            </div>
-          </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-[112rem] flex-col gap-2 px-2 py-2 sm:px-3 lg:flex-row">
+        <aside className="lg:sticky lg:top-2 lg:h-[calc(100vh-1rem)] lg:w-64 lg:shrink-0 xl:w-72">
+          <ControlSidebar
+            game={game}
+            serverStatus={serverStatus}
+            savedGameId={savedGameId}
+            displayUrl={displayUrl}
+            tabletUrl={tabletUrl}
+            onResetLifeTotals={resetLifeTotals}
+            onSaveCurrentGame={() => void saveCurrentGame()}
+            onNewGame={newGame}
+            onAddPlayer={addPlayer}
+            onStartingLife={(startingLife) => commit({ ...game, startingLife })}
+            onCycleDayNight={cycleDayNight}
+            onChooseRandomPlayer={chooseRandomPlayer}
+            onRollD20={rollD20}
+            onToggleTimer={toggleTimer}
+            onSetActivePlayer={setActivePlayer}
+            onResetTimer={resetTimer}
+          />
+        </aside>
 
-          {chromeOpen ? (
-            <div className="grid gap-3 border-t border-border p-2 sm:p-3">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                <Button asChild variant="outline">
-                  <Link href={displayUrl} target="_blank">
-                    <Monitor className="h-4 w-4" />
-                    Open TV
-                  </Link>
-                </Button>
-                <Button variant="outline" onClick={newGame}>
-                  <Skull className="h-4 w-4" />
-                  New Game
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/games">
-                    <Save className="h-4 w-4" />
-                    Games
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/login">
-                    <LogIn className="h-4 w-4" />
-                    Login
-                  </Link>
-                </Button>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="starting-life">Starting life</Label>
-                <Input
-                  id="starting-life"
-                  type="number"
-                  inputMode="numeric"
-                  value={game.startingLife}
-                  onChange={(event) => {
-                    const value = Number(event.target.value || 40);
-                    commit({ ...game, startingLife: value });
-                  }}
-                />
-              </div>
-              <Button onClick={addPlayer} className="w-full">
-                <UserPlus className="h-4 w-4" />
-                Add Player
-              </Button>
-              <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:justify-self-stretch">
-                <summary className="cursor-pointer font-semibold text-foreground">TV URL</summary>
-                <div className="mt-1 break-all font-mono text-xs text-foreground">{displayUrl}</div>
-              </details>
-              <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:justify-self-stretch">
-                <summary className="cursor-pointer font-semibold text-foreground">Tablet URL</summary>
-                <div className="mt-1 break-all font-mono text-xs text-foreground">{tabletUrl}</div>
-              </details>
-              <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Button variant="outline" onClick={cycleDayNight}>
-                    {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                    {game.dayNight ?? "Day/Night"}
-                  </Button>
-                  <Button variant="outline" onClick={chooseRandomPlayer}>
-                    <Sparkles className="h-4 w-4" />
-                    Random
-                  </Button>
-                  <Button variant="outline" onClick={rollD20}>
-                    <Dices className="h-4 w-4" />
-                    d20 {game.diceRoll ? game.diceRoll : ""}
-                  </Button>
-                  <Button variant={game.timerStartedAt ? "secondary" : "outline"} onClick={toggleTimer}>
-                    <Timer className="h-4 w-4" />
-                    {game.timerStartedAt ? "Pause" : "Timer"}
-                  </Button>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div className="flex flex-wrap gap-1">
-                    {game.players.map((player) => (
-                      <Button
-                        key={player.id}
-                        size="sm"
-                        variant={game.activePlayerId === player.id ? "secondary" : "outline"}
-                        onClick={() => setActivePlayer(player.id)}
-                      >
-                        {player.name}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={resetTimer}>
-                    Reset timer
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </header>
-
-        <section className="grid gap-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+        <section className="grid min-w-0 flex-1 gap-2">
+          <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
             {game.players.map((player) => (
-              <GlowingBorder key={player.id}>
+              <GlowingBorder key={player.id} className="min-w-0">
                 <PlayerControl
                   player={player}
                   players={game.players}
@@ -463,6 +355,156 @@ export default function ControlPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ControlSidebar({
+  game,
+  serverStatus,
+  savedGameId,
+  displayUrl,
+  tabletUrl,
+  onResetLifeTotals,
+  onSaveCurrentGame,
+  onNewGame,
+  onAddPlayer,
+  onStartingLife,
+  onCycleDayNight,
+  onChooseRandomPlayer,
+  onRollD20,
+  onToggleTimer,
+  onSetActivePlayer,
+  onResetTimer
+}: {
+  game: CommanderGame;
+  serverStatus: string;
+  savedGameId: string | null;
+  displayUrl: string;
+  tabletUrl: string;
+  onResetLifeTotals: () => void;
+  onSaveCurrentGame: () => void;
+  onNewGame: () => void;
+  onAddPlayer: () => void;
+  onStartingLife: (startingLife: number) => void;
+  onCycleDayNight: () => void;
+  onChooseRandomPlayer: () => void;
+  onRollD20: () => void;
+  onToggleTimer: () => void;
+  onSetActivePlayer: (playerId: string) => void;
+  onResetTimer: () => void;
+}) {
+  return (
+    <div className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background/85 p-3 backdrop-blur">
+      <div className="flex items-start gap-3">
+        <TabletSmartphone className="mt-1 h-5 w-5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <div className="text-sm font-black uppercase tracking-wider">Control</div>
+          <div className="mt-1 text-xs text-muted-foreground">{serverStatus}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="justify-start">
+          <RotateCcw className="h-4 w-4" />
+          Reset
+        </Button>
+        <Button size="sm" variant="outline" onClick={onSaveCurrentGame} className="justify-start">
+          <Save className="h-4 w-4" />
+          {savedGameId ? "Saved" : "Save"}
+        </Button>
+        <Button asChild size="sm" variant="secondary" className="justify-start">
+          <Link href={tabletUrl}>
+            <Tablet className="h-4 w-4" />
+            Tablet
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline" className="justify-start">
+          <Link href={displayUrl} target="_blank">
+            <Monitor className="h-4 w-4" />
+            TV
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={onNewGame} className="justify-start">
+          <Skull className="h-4 w-4" />
+          New
+        </Button>
+        <Button asChild variant="outline" size="sm" className="justify-start">
+          <Link href="/games">
+            <Save className="h-4 w-4" />
+            Games
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm" className="justify-start">
+          <Link href="/login">
+            <LogIn className="h-4 w-4" />
+            Login
+          </Link>
+        </Button>
+        <Button onClick={onAddPlayer} size="sm" className="justify-start">
+          <UserPlus className="h-4 w-4" />
+          Player
+        </Button>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="starting-life">Starting life</Label>
+        <Input
+          id="starting-life"
+          type="number"
+          inputMode="numeric"
+          value={game.startingLife}
+          onChange={(event) => onStartingLife(Number(event.target.value || 40))}
+        />
+      </div>
+
+      <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" onClick={onCycleDayNight}>
+            {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            {game.dayNight ?? "Day/Night"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onChooseRandomPlayer}>
+            <Sparkles className="h-4 w-4" />
+            Random
+          </Button>
+          <Button variant="outline" size="sm" onClick={onRollD20}>
+            <Dices className="h-4 w-4" />
+            d20 {game.diceRoll ? game.diceRoll : ""}
+          </Button>
+          <Button variant={game.timerStartedAt ? "secondary" : "outline"} size="sm" onClick={onToggleTimer}>
+            <Timer className="h-4 w-4" />
+            {game.timerStartedAt ? "Pause" : "Timer"}
+          </Button>
+        </div>
+
+        <div className="grid gap-2">
+          <div className="flex flex-wrap gap-1">
+            {game.players.map((player) => (
+              <Button
+                key={player.id}
+                size="sm"
+                variant={game.activePlayerId === player.id ? "secondary" : "outline"}
+                onClick={() => onSetActivePlayer(player.id)}
+              >
+                {player.name}
+              </Button>
+            ))}
+          </div>
+          <Button size="sm" variant="ghost" onClick={onResetTimer}>
+            Reset timer
+          </Button>
+        </div>
+      </div>
+
+      <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+        <summary className="cursor-pointer font-semibold text-foreground">TV URL</summary>
+        <div className="mt-1 break-all font-mono text-xs text-foreground">{displayUrl}</div>
+      </details>
+      <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+        <summary className="cursor-pointer font-semibold text-foreground">Tablet URL</summary>
+        <div className="mt-1 break-all font-mono text-xs text-foreground">{tabletUrl}</div>
+      </details>
+    </div>
   );
 }
 
@@ -498,42 +540,81 @@ function PlayerControl({
   canRemove: boolean;
 }) {
   return (
-    <div className="space-y-3 rounded-lg bg-card p-3">
-      <div className="flex items-center gap-3">
+    <div className="space-y-1.5 rounded-md bg-card p-2">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5">
         <div
-          className="h-14 w-14 shrink-0 rounded-md border border-border bg-muted bg-cover bg-center"
+          className="h-9 w-9 shrink-0 rounded-md border border-border bg-muted bg-cover bg-center"
           style={{ backgroundImage: player.backgroundImage ? `url(${player.backgroundImage})` : undefined }}
         />
-        <div className="min-w-0 flex-1 space-y-1">
-          <Label htmlFor={`${player.id}-name`}>Player name</Label>
-          <Input id={`${player.id}-name`} value={player.name} onChange={(event) => onName(event.target.value)} />
+        <div className="min-w-0">
+          <Input
+            id={`${player.id}-name`}
+            value={player.name}
+            onChange={(event) => onName(event.target.value)}
+            className="h-8 px-2 text-xs font-semibold"
+          />
         </div>
-        <Button variant="ghost" size="icon" onClick={onRemove} disabled={!canRemove} aria-label="Remove player">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRemove} disabled={!canRemove} aria-label="Remove player">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-        <Button size="sm" variant="outline" onClick={() => onLife(player.id, -1)}>-1</Button>
-        <div className="min-w-20 text-center text-4xl font-black leading-none">{player.life}</div>
-        <Button size="sm" variant="outline" onClick={() => onLife(player.id, 1)}>+1</Button>
-        <Button size="sm" variant="outline" onClick={() => onLife(player.id, -5)}>-5</Button>
-        <div />
-        <Button size="sm" variant="outline" onClick={() => onLife(player.id, 5)}>+5</Button>
-        <Button size="sm" variant="destructive" onClick={() => onLife(player.id, -10)}>-10</Button>
-        <div />
-        <Button size="sm" onClick={() => onLife(player.id, 10)}>+10</Button>
+      <div className="grid grid-cols-[auto_1fr] items-center gap-1.5">
+        <div className="min-w-14 text-center text-4xl font-black leading-none">{player.life}</div>
+        <div className="grid grid-cols-3 gap-1">
+          <Button size="sm" variant="destructive" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -10)}>-10</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -5)}>-5</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -1)}>-1</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 1)}>+1</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 5)}>+5</Button>
+          <Button size="sm" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 10)}>+10</Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-        <Button size="sm" variant="outline" onClick={() => onPoison(player.id, -1)}>-</Button>
-        <div className="text-center text-sm font-semibold">Poison: {player.poison}</div>
-        <Button size="sm" variant="outline" onClick={() => onPoison(player.id, 1)}>+</Button>
+      <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-muted/30 px-1 py-1">
+          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" onClick={() => onPoison(player.id, -1)}>-</Button>
+          <div className="flex items-center justify-center gap-1 text-xs font-black">
+            <Skull className="h-3.5 w-3.5 text-emerald-300" />
+            {player.poison}
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" onClick={() => onPoison(player.id, 1)}>+</Button>
+        </div>
+        <CompactCounter
+          icon={<Trophy className="h-3.5 w-3.5 text-primary" />}
+          value={player.experience}
+          onMinus={() => onCounter(player.id, "experience", -1)}
+          onPlus={() => onCounter(player.id, "experience", 1)}
+        />
+        <CompactCounter
+          icon={<Sparkles className="h-3.5 w-3.5 text-sky-300" />}
+          value={player.energy}
+          onMinus={() => onCounter(player.id, "energy", -1)}
+          onPlus={() => onCounter(player.id, "energy", 1)}
+        />
+        <CompactCounter
+          icon={<Gem className="h-3.5 w-3.5 text-amber-300" />}
+          value={player.treasure}
+          onMinus={() => onCounter(player.id, "treasure", -1)}
+          onPlus={() => onCounter(player.id, "treasure", 1)}
+        />
       </div>
 
-      <details className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
-        <summary className="cursor-pointer text-sm font-semibold">Commander cards</summary>
-        <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-3 gap-1">
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "outline"} onClick={() => onStatus(player.id, "isMonarch")}>
+          <Crown className="h-4 w-4" />
+        </Button>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasInitiative")}>
+          Init
+        </Button>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
+          City
+        </Button>
+      </div>
+
+      <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
+        <summary className="cursor-pointer text-xs font-semibold">Commander cards</summary>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <div className="space-y-1">
             <Label htmlFor={`${player.id}-commander`}>Commander</Label>
             <Input
@@ -553,100 +634,60 @@ function PlayerControl({
         </div>
       </details>
 
-      <details className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
-        <summary className="cursor-pointer text-sm font-semibold">Counters and emblems</summary>
-        <div className="grid gap-2">
-          <CounterRow
-            icon={<Trophy className="h-4 w-4 text-primary" />}
-            label="Experience"
-            value={player.experience}
-            onMinus={() => onCounter(player.id, "experience", -1)}
-            onPlus={() => onCounter(player.id, "experience", 1)}
-          />
-          <CounterRow
-            icon={<Sparkles className="h-4 w-4 text-sky-300" />}
-            label="Energy"
-            value={player.energy}
-            onMinus={() => onCounter(player.id, "energy", -1)}
-            onPlus={() => onCounter(player.id, "energy", 1)}
-          />
-          <CounterRow
-            icon={<Gem className="h-4 w-4 text-amber-300" />}
-            label="Treasure"
-            value={player.treasure}
-            onMinus={() => onCounter(player.id, "treasure", -1)}
-            onPlus={() => onCounter(player.id, "treasure", 1)}
-          />
-          <div className="grid grid-cols-3 gap-1">
-            <Button size="sm" variant={player.isMonarch ? "secondary" : "outline"} onClick={() => onStatus(player.id, "isMonarch")}>
-              <Crown className="h-4 w-4" />
-              Monarch
-            </Button>
-            <Button size="sm" variant={player.hasInitiative ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasInitiative")}>
-              Initiative
-            </Button>
-            <Button size="sm" variant={player.hasCityBlessing ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
-              City
-            </Button>
-          </div>
-        </div>
-      </details>
-
-      <details className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
-        <summary className="cursor-pointer text-sm font-semibold">Commander damage</summary>
-        <div className="grid gap-2">
+      <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
+        <summary className="cursor-pointer text-xs font-semibold">Commander damage</summary>
+        <div className="mt-2 grid gap-1">
           {players
             .filter((source) => source.id !== player.id)
             .map((source) => (
-              <div key={source.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-md bg-muted/50 p-2">
-                <span className="truncate text-sm">{source.name}</span>
-                <span className="w-8 text-center font-bold">{player.commanderDamage[source.id] ?? 0}</span>
+              <div key={source.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-md bg-muted/50 px-2 py-1">
+                <span className="truncate text-xs">{source.name}</span>
+                <span className="w-7 text-center text-sm font-black">{player.commanderDamage[source.id] ?? 0}</span>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
-                  <Button size="sm" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
+                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
+                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
                 </div>
               </div>
             ))}
         </div>
       </details>
 
-      <details className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
-        <summary className="cursor-pointer text-sm font-semibold">Background art</summary>
-        <Label htmlFor={`${player.id}-image`}>Background image URL</Label>
-        <Input
-          id={`${player.id}-image`}
-          value={player.backgroundImage}
-          onChange={(event) => onManualImage(event.target.value)}
-          placeholder="https://..."
-        />
-        <ScryfallPicker onSelect={onImage} />
+      <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
+        <summary className="cursor-pointer text-xs font-semibold">Background art</summary>
+        <div className="mt-2 space-y-2">
+          <Label htmlFor={`${player.id}-image`}>Background image URL</Label>
+          <Input
+            id={`${player.id}-image`}
+            value={player.backgroundImage}
+            onChange={(event) => onManualImage(event.target.value)}
+            placeholder="https://..."
+          />
+          <ScryfallPicker onSelect={onImage} />
+        </div>
       </details>
     </div>
   );
 }
 
-function CounterRow({
+function CompactCounter({
   icon,
-  label,
   value,
   onMinus,
   onPlus
 }: {
   icon: React.ReactNode;
-  label: string;
   value: number;
   onMinus: () => void;
   onPlus: () => void;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-md bg-background/45 p-2 text-sm">
-      {icon}
-      <span>{label}</span>
-      <span className="w-8 text-center font-black">{value}</span>
-      <div className="flex gap-1">
-        <Button size="sm" variant="ghost" onClick={onMinus}>-</Button>
-        <Button size="sm" variant="ghost" onClick={onPlus}>+</Button>
-      </div>
+    <div className="grid grid-cols-[auto_1fr_auto] items-center rounded-md bg-muted/30 px-1 py-1 text-xs">
+      <button type="button" onClick={onMinus} className="rounded px-1 font-black">-</button>
+      <span className="flex min-w-0 items-center justify-center gap-1 font-black">
+        {icon}
+        {value}
+      </span>
+      <button type="button" onClick={onPlus} className="rounded px-1 font-black">+</button>
     </div>
   );
 }
