@@ -19,7 +19,8 @@ import {
   Timer,
   Trash2,
   Trophy,
-  UserPlus
+  UserPlus,
+  Wrench
 } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { GlowingBorder } from "@/components/aceternity/glowing-border";
@@ -49,6 +50,7 @@ export default function ControlPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
   const [serverStatus, setServerStatus] = useState("Local state loaded");
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
+  const [setupPlayerId, setSetupPlayerId] = useState<string | null>(null);
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
     displayToken: null,
@@ -330,22 +332,29 @@ export default function ControlPage() {
         <section className="grid min-w-0 flex-1 gap-2">
           <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
             {game.players.map((player) => (
-              <GlowingBorder key={player.id} className="min-w-0">
+              <GlowingBorder key={player.id} className="min-w-0 self-start">
                 <PlayerControl
                   player={player}
                   players={game.players}
+                  setupOpen={setupPlayerId === player.id}
+                  onToggleSetup={() => setSetupPlayerId((current) => (current === player.id ? null : player.id))}
                   onName={(name) => patchPlayer(player.id, { name })}
-                  onImage={(backgroundImage, backgroundCardName) =>
-                    patchPlayer(player.id, { backgroundImage, backgroundCardName })
+                  onCommanderName={(commanderName) => patchPlayer(player.id, { commanderName })}
+                  onPartnerCommanderName={(partnerCommanderName) => patchPlayer(player.id, { partnerCommanderName })}
+                  onBackgroundImage={(backgroundImage) => patchPlayer(player.id, { backgroundImage })}
+                  onSelectCommanderArt={(imageUrl, cardName) =>
+                    patchPlayer(player.id, {
+                      backgroundImage: imageUrl,
+                      backgroundCardName: cardName,
+                      commanderName: player.commanderName || cardName
+                    })
                   }
-                  onManualImage={(backgroundImage) => patchPlayer(player.id, { backgroundImage })}
+                  onClearCommanderArt={() => patchPlayer(player.id, { backgroundImage: "", backgroundCardName: "" })}
                   onLife={adjustLife}
                   onPoison={adjustPoison}
                   onCommanderDamage={adjustCommanderDamage}
                   onCounter={adjustPlayerCounter}
                   onStatus={togglePlayerStatus}
-                  onCommanderName={(commanderName) => patchPlayer(player.id, { commanderName })}
-                  onPartnerCommanderName={(partnerCommanderName) => patchPlayer(player.id, { partnerCommanderName })}
                   onRemove={() => removePlayer(player.id)}
                   canRemove={game.players.length > 2}
                 />
@@ -511,31 +520,37 @@ function ControlSidebar({
 function PlayerControl({
   player,
   players,
+  setupOpen,
+  onToggleSetup,
   onName,
-  onImage,
-  onManualImage,
+  onCommanderName,
+  onPartnerCommanderName,
+  onBackgroundImage,
+  onSelectCommanderArt,
+  onClearCommanderArt,
   onLife,
   onPoison,
   onCommanderDamage,
   onCounter,
   onStatus,
-  onCommanderName,
-  onPartnerCommanderName,
   onRemove,
   canRemove
 }: {
   player: CommanderPlayer;
   players: CommanderPlayer[];
+  setupOpen: boolean;
+  onToggleSetup: () => void;
   onName: (name: string) => void;
-  onImage: (imageUrl: string, cardName: string) => void;
-  onManualImage: (imageUrl: string) => void;
+  onCommanderName: (commanderName: string) => void;
+  onPartnerCommanderName: (partnerCommanderName: string) => void;
+  onBackgroundImage: (backgroundImage: string) => void;
+  onSelectCommanderArt: (imageUrl: string, cardName: string) => void;
+  onClearCommanderArt: () => void;
   onLife: (playerId: string, amount: number) => void;
   onPoison: (playerId: string, amount: number) => void;
   onCommanderDamage: (playerId: string, sourceId: string, amount: number) => void;
   onCounter: (playerId: string, key: "experience" | "energy" | "treasure", amount: number) => void;
   onStatus: (playerId: string, key: "isMonarch" | "hasInitiative" | "hasCityBlessing") => void;
-  onCommanderName: (name: string) => void;
-  onPartnerCommanderName: (name: string) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
@@ -554,10 +569,83 @@ function PlayerControl({
             className="h-8 px-2 text-xs font-semibold"
           />
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRemove} disabled={!canRemove} aria-label="Remove player">
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant={setupOpen ? "secondary" : "ghost"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={onToggleSetup}
+            aria-label={`Setup ${player.name}`}
+            aria-expanded={setupOpen}
+          >
+            <Wrench className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRemove} disabled={!canRemove} aria-label="Remove player">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {setupOpen ? (
+        <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor={`${player.id}-commander`} className="text-xs">
+                Commander
+              </Label>
+              <Input
+                id={`${player.id}-commander`}
+                value={player.commanderName}
+                onChange={(event) => onCommanderName(event.target.value)}
+                className="h-8 px-2 text-xs"
+                placeholder="Commander name"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`${player.id}-partner`} className="text-xs">
+                Partner
+              </Label>
+              <Input
+                id={`${player.id}-partner`}
+                value={player.partnerCommanderName}
+                onChange={(event) => onPartnerCommanderName(event.target.value)}
+                className="h-8 px-2 text-xs"
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`${player.id}-background-image`} className="text-xs">
+              Commander card image
+            </Label>
+            <div className="grid grid-cols-[1fr_auto] gap-1">
+              <Input
+                id={`${player.id}-background-image`}
+                value={player.backgroundImage}
+                onChange={(event) => onBackgroundImage(event.target.value)}
+                className="h-8 px-2 text-xs"
+                placeholder="https://..."
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                onClick={onClearCommanderArt}
+                disabled={!player.backgroundImage}
+              >
+                Clear
+              </Button>
+            </div>
+            {player.backgroundCardName ? (
+              <p className="truncate text-[11px] font-semibold text-muted-foreground">
+                Art: {player.backgroundCardName}
+              </p>
+            ) : null}
+          </div>
+          <ScryfallPicker onSelect={onSelectCommanderArt} />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-[auto_1fr] items-center gap-1.5">
         <div className="min-w-14 text-center text-4xl font-black leading-none">{player.life}</div>
@@ -613,28 +701,6 @@ function PlayerControl({
       </div>
 
       <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
-        <summary className="cursor-pointer text-xs font-semibold">Commander cards</summary>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor={`${player.id}-commander`}>Commander</Label>
-            <Input
-              id={`${player.id}-commander`}
-              value={player.commanderName}
-              onChange={(event) => onCommanderName(event.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor={`${player.id}-partner`}>Partner/background</Label>
-            <Input
-              id={`${player.id}-partner`}
-              value={player.partnerCommanderName}
-              onChange={(event) => onPartnerCommanderName(event.target.value)}
-            />
-          </div>
-        </div>
-      </details>
-
-      <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
         <summary className="cursor-pointer text-xs font-semibold">Commander damage</summary>
         <div className="mt-2 grid gap-1">
           {players
@@ -649,20 +715,6 @@ function PlayerControl({
                 </div>
               </div>
             ))}
-        </div>
-      </details>
-
-      <details className="rounded-md border border-border bg-muted/30 px-2 py-1">
-        <summary className="cursor-pointer text-xs font-semibold">Background art</summary>
-        <div className="mt-2 space-y-2">
-          <Label htmlFor={`${player.id}-image`}>Background image URL</Label>
-          <Input
-            id={`${player.id}-image`}
-            value={player.backgroundImage}
-            onChange={(event) => onManualImage(event.target.value)}
-            placeholder="https://..."
-          />
-          <ScryfallPicker onSelect={onImage} />
         </div>
       </details>
     </div>

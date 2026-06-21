@@ -20,6 +20,26 @@ export async function GET() {
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
+  if (error && isMissingTokenColumnError(error.message)) {
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("commander_games")
+      .select("id,name,is_active,created_at,updated_at")
+      .eq("owner_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    if (legacyError) {
+      return NextResponse.json({ error: legacyError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      games: (legacyData ?? []).map((game) => ({
+        ...game,
+        display_token: null,
+        control_token: null
+      }))
+    });
+  }
+
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -55,9 +75,35 @@ export async function POST(request: Request) {
     .select("id,name,state,display_token,control_token,created_at,updated_at")
     .single();
 
+  if (error && isMissingTokenColumnError(error.message)) {
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("commander_games")
+      .insert({
+        owner_id: user.id,
+        name,
+        state
+      })
+      .select("id,name,state,created_at,updated_at")
+      .single();
+
+    if (legacyError) {
+      return NextResponse.json({ error: legacyError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ...legacyData,
+      display_token: null,
+      control_token: null
+    });
+  }
+
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data);
+}
+
+function isMissingTokenColumnError(message: string) {
+  return message.includes("display_token") || message.includes("control_token");
 }

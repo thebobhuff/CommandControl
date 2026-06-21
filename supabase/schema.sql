@@ -1,4 +1,4 @@
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.commander_games (
   id uuid primary key default gen_random_uuid(),
@@ -6,8 +6,8 @@ create table if not exists public.commander_games (
   name text not null default 'Commander Game',
   state jsonb not null,
   is_active boolean not null default true,
-  display_token text not null default encode(gen_random_bytes(24), 'hex'),
-  control_token text not null default encode(gen_random_bytes(24), 'hex'),
+  display_token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
+  control_token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
