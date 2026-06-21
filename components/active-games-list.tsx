@@ -31,9 +31,9 @@ export function ActiveGamesList() {
       </div>
       <div className="grid gap-2 md:grid-cols-2">
         {games.map((game) => {
-          const displayHref = `/display?gameId=${encodeURIComponent(game.id)}&token=${encodeURIComponent(game.display_token)}`;
-          const controlHref = `/control?gameId=${encodeURIComponent(game.id)}&token=${encodeURIComponent(game.control_token)}`;
-          const tabletHref = `/tablet?gameId=${encodeURIComponent(game.id)}&token=${encodeURIComponent(game.control_token)}`;
+          const displayHref = buildGameHref("/display", game.id, game.display_token);
+          const controlHref = buildGameHref("/control", game.id, game.control_token);
+          const tabletHref = buildGameHref("/tablet", game.id, game.control_token);
 
           return (
             <article key={game.id} className="rounded-lg border border-border bg-card/85 p-3 backdrop-blur">
@@ -57,6 +57,15 @@ export function ActiveGamesList() {
       </div>
     </section>
   );
+}
+
+function buildGameHref(path: string, gameId: string, token: string | null) {
+  const params = new URLSearchParams({ gameId });
+  if (token) {
+    params.set("token", token);
+  }
+
+  return `${path}?${params.toString()}`;
 }
 
 function GameLink({

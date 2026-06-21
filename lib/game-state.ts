@@ -16,8 +16,8 @@ export type SavedGameSummary = {
   id: string;
   name: string;
   is_active: boolean;
-  display_token: string;
-  control_token: string;
+  display_token: string | null;
+  control_token: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -171,7 +171,8 @@ export async function createSavedGame(game: CommanderGame, name = "Commander Gam
   });
 
   if (!response.ok) {
-    throw new Error("Unable to create saved game");
+    const result = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(result.error ?? "Unable to create saved game");
   }
 
   const result = (await response.json()) as { id: string; state: CommanderGame; display_token?: string; control_token?: string };

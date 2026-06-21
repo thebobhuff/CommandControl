@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, LogOut, Plus, UserRound } from "lucide-react";
+import { ArrowLeft, ImageIcon, Loader2, LogOut, Plus, UserRound } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export default function PlayersPage() {
   const [displayName, setDisplayName] = useState("");
   const [favoriteCommander, setFavoriteCommander] = useState("");
   const [backgroundImage, setBackgroundImage] = useState("");
+  const [savingPlayerId, setSavingPlayerId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -69,6 +70,44 @@ export default function PlayersPage() {
     setFavoriteCommander("");
     setBackgroundImage("");
     await loadPlayers();
+  }
+
+  async function updatePlayer(
+    player: PlayerProfile,
+    patch: Partial<Pick<PlayerProfile, "display_name" | "favorite_commander" | "background_image">>
+  ) {
+    setError("");
+    setSavingPlayerId(player.id);
+    const nextPlayer = {
+      ...player,
+      ...patch
+    };
+
+    const response = await fetch("/api/players", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: player.id,
+        display_name: nextPlayer.display_name,
+        favorite_commander: nextPlayer.favorite_commander || null,
+        background_image: nextPlayer.background_image || null
+      })
+    });
+
+    setSavingPlayerId(null);
+
+    if (!response.ok) {
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(result.error ?? "Unable to update player");
+      return;
+    }
+
+    const savedPlayer = (await response.json()) as PlayerProfile;
+    setPlayers((current) =>
+      current.map((candidate) => (candidate.id === savedPlayer.id ? savedPlayer : candidate))
+    );
   }
 
   async function signOut() {
@@ -117,7 +156,7 @@ export default function PlayersPage() {
                 <Input id="favorite-commander" value={favoriteCommander} onChange={(event) => setFavoriteCommander(event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="background-image">Background image</Label>
+                <Label htmlFor="background-image">Profile image</Label>
                 <Input id="background-image" value={backgroundImage} onChange={(event) => setBackgroundImage(event.target.value)} placeholder="https://..." />
                 <ScryfallPicker
                   onSelect={(imageUrl, cardName) => {
@@ -145,14 +184,61 @@ export default function PlayersPage() {
                     style={{ backgroundImage: player.background_image ? `url(${player.background_image})` : undefined }}
                   />
                   <div className="p-4">
-                    <div className="flex items-center gap-2 text-primary">
-                      <UserRound className="h-4 w-4" />
-                      <span className="text-sm font-black uppercase tracking-wider">Player</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-primary">
+                          <UserRound className="h-4 w-4" />
+                          <span className="text-sm font-black uppercase tracking-wider">Player</span>
+                        </div>
+                        <h3 className="mt-2 truncate text-xl font-black">{player.display_name}</h3>
+                        {player.favorite_commander ? (
+                          <p className="mt-1 truncate text-sm text-muted-foreground">{player.favorite_commander}</p>
+                        ) : null}
+                      </div>
+                      {savingPlayerId === player.id ? <Loader2 className="mt-1 h-4 w-4 shrink-0 animate-spin text-primary" /> : null}
                     </div>
-                    <h3 className="mt-2 text-xl font-black">{player.display_name}</h3>
-                    {player.favorite_commander ? (
-                      <p className="mt-1 text-sm text-muted-foreground">{player.favorite_commander}</p>
-                    ) : null}
+                    <details className="mt-4 rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                        <ImageIcon className="h-4 w-4 text-primary" />
+                        Profile image
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor={`${player.id}-profile-image`}>Image URL</Label>
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <Input
+                            id={`${player.id}-profile-image`}
+                            value={player.background_image ?? ""}
+                            onChange={(event) => {
+                              setPlayers((current) =>
+                                current.map((candidate) =>
+                                  candidate.id === player.id
+                                    ? { ...candidate, background_image: event.target.value }
+                                    : candidate
+                                )
+                              );
+                            }}
+                            onBlur={(event) => void updatePlayer(player, { background_image: event.target.value })}
+                            placeholder="https://..."
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void updatePlayer(player, { background_image: null })}
+                            disabled={!player.background_image || savingPlayerId === player.id}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                        <ScryfallPicker
+                          onSelect={(imageUrl, cardName) =>
+                            void updatePlayer(player, {
+                              background_image: imageUrl,
+                              favorite_commander: player.favorite_commander || cardName
+                            })
+                          }
+                        />
+                      </div>
+                    </details>
                   </div>
                 </div>
               ))

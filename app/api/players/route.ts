@@ -54,3 +54,37 @@ export async function POST(request: Request) {
 
   return NextResponse.json(data);
 }
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  if (!body.id) {
+    return NextResponse.json({ error: "Player id is required" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("commander_players")
+    .update({
+      display_name: body.display_name,
+      favorite_commander: body.favorite_commander ?? null,
+      background_image: body.background_image ?? null
+    })
+    .eq("id", body.id)
+    .eq("owner_id", user.id)
+    .select("id,display_name,favorite_commander,background_image,created_at,updated_at")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}

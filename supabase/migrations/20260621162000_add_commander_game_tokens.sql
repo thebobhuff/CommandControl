@@ -1,6 +1,8 @@
+create extension if not exists pgcrypto with schema extensions;
+
 alter table public.commander_games
-  add column if not exists display_token text not null default encode(gen_random_bytes(24), 'hex'),
-  add column if not exists control_token text not null default encode(gen_random_bytes(24), 'hex');
+  add column if not exists display_token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
+  add column if not exists control_token text not null default encode(extensions.gen_random_bytes(24), 'hex');
 
 create or replace function public.get_commander_game_by_token(
   requested_game_id uuid,

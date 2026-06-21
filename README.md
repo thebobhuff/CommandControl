@@ -11,7 +11,8 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 - Tablet-only mode for games without a TV.
 - Player names and card-art background images.
 - Scryfall search for game/player background art.
-- Supabase magic-link login.
+- Supabase password and magic-link login.
+- Password reset email delivery through Resend, Brevo, then Supabase fallback.
 - Supabase-backed saved game states.
 - Supabase-backed saved player profiles.
 - Commander damage tracking per opponent.
@@ -42,9 +43,11 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 | `/control` | Main tablet controller and setup surface |
 | `/tablet` | Tablet-only play mode with large tap targets |
 | `/display` | TV display view |
-| `/login` | Supabase magic-link login |
+| `/login` | Supabase password, signup, magic-link, and reset-link login |
+| `/reset-password` | Password reset form |
 | `/games` | Saved Supabase games |
 | `/players` | Saved player profiles |
+| `/api/auth/password-reset` | Password reset email API |
 | `/api/game` | Current game state API |
 | `/api/games` | Saved games API |
 | `/api/players` | Saved player profiles API |
@@ -62,6 +65,15 @@ Create `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+RESEND_API_KEY=your-resend-api-key
+RESEND_FROM_EMAIL="Commander Control <no-reply@your-domain.com>"
+
+BREVO_API_KEY=your-brevo-api-key
+BREVO_FROM_EMAIL=no-reply@your-domain.com
+BREVO_FROM_NAME="Commander Control"
 ```
 
 Run the dev server:
@@ -129,7 +141,7 @@ It creates:
 
 ## Supabase Auth
 
-The app uses magic-link email login through Supabase Auth. In your Supabase dashboard, make sure your Site URL and Redirect URLs include the app URLs you use.
+The app uses Supabase Auth for password login, signup, magic links, and password recovery sessions. In your Supabase dashboard, make sure your Site URL and Redirect URLs include the app URLs you use.
 
 For local development:
 
@@ -144,7 +156,23 @@ For LAN tablet/TV testing, add your machine IP URL if needed:
 http://<computer-ip>:3000
 ```
 
-For production, add your deployed domain.
+For production, add your deployed domain and set the same value in Vercel:
+
+```text
+NEXT_PUBLIC_SITE_URL=https://your-production-domain
+```
+
+If `NEXT_PUBLIC_SITE_URL` is not set, magic links redirect back to the origin where the login form was opened. That is useful for local testing, but it means links sent from `localhost` return to `localhost`.
+
+Password reset emails are sent by the app first. `/api/auth/password-reset` generates a Supabase recovery link with `SUPABASE_SERVICE_ROLE_KEY`, sends it through Resend first, falls back to Brevo if Resend is not configured or fails, then falls back to Supabase Auth email if app-managed delivery is unavailable. Keep the service role key server-only.
+
+For password reset links, also add:
+
+```text
+http://localhost:3000/reset-password
+http://127.0.0.1:3000/reset-password
+https://your-production-domain/reset-password
+```
 
 ## Scryfall
 
