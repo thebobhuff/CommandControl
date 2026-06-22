@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Gamepad2, Home, LogIn, Save, UsersRound, UserRound } from "lucide-react";
+import { Home, LogIn, Save, UsersRound, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { BrandIcon } from "@/components/brand-icon";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -63,7 +64,7 @@ export function InteriorNav() {
     <nav className="rounded-lg border border-border bg-background/80 p-3 backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/" className="flex items-center gap-3 text-primary">
-          <Gamepad2 className="h-8 w-8" />
+          <BrandIcon className="h-9 w-9" />
           <div>
             <span className="block text-sm font-semibold uppercase tracking-wider">Commander Control</span>
             <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Shiny Spells!</span>

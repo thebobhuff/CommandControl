@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpenCheck, Gamepad2, LogIn, Monitor, Save, Tablet, TabletSmartphone, UserRound } from "lucide-react";
+import { BookOpenCheck, LogIn, Monitor, Save, Tablet, TabletSmartphone, UserRound } from "lucide-react";
+import { BrandIcon } from "@/components/brand-icon";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -60,7 +61,7 @@ export function HomeNav() {
   return (
     <nav className="flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-3 backdrop-blur md:flex-row md:items-center md:justify-between">
       <Link href="/" className="flex items-center gap-3 text-primary">
-        <Gamepad2 className="h-9 w-9" />
+        <BrandIcon className="h-10 w-10" />
         <div>
           <span className="block text-sm font-semibold uppercase tracking-wider">Commander Control</span>
           <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Shiny Spells!</span>
