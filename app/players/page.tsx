@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, ImageIcon, Loader2, LogOut, Plus, UserRound } from "lucide-react";
+import { ImageIcon, Loader2, Plus, UserRound } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
+import { InteriorNav } from "@/components/interior-nav";
 import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ type PlayerProfile = {
   display_name: string;
   favorite_commander: string | null;
   background_image: string | null;
+  moxfield_deck_url: string | null;
   updated_at: string;
 };
 
@@ -24,6 +25,7 @@ export default function PlayersPage() {
   const [displayName, setDisplayName] = useState("");
   const [favoriteCommander, setFavoriteCommander] = useState("");
   const [backgroundImage, setBackgroundImage] = useState("");
+  const [moxfieldDeckUrl, setMoxfieldDeckUrl] = useState("");
   const [savingPlayerId, setSavingPlayerId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -56,7 +58,8 @@ export default function PlayersPage() {
       body: JSON.stringify({
         display_name: displayName,
         favorite_commander: favoriteCommander || null,
-        background_image: backgroundImage || null
+        background_image: backgroundImage || null,
+        moxfield_deck_url: moxfieldDeckUrl || null
       })
     });
 
@@ -69,12 +72,13 @@ export default function PlayersPage() {
     setDisplayName("");
     setFavoriteCommander("");
     setBackgroundImage("");
+    setMoxfieldDeckUrl("");
     await loadPlayers();
   }
 
   async function updatePlayer(
     player: PlayerProfile,
-    patch: Partial<Pick<PlayerProfile, "display_name" | "favorite_commander" | "background_image">>
+    patch: Partial<Pick<PlayerProfile, "display_name" | "favorite_commander" | "background_image" | "moxfield_deck_url">>
   ) {
     setError("");
     setSavingPlayerId(player.id);
@@ -92,7 +96,8 @@ export default function PlayersPage() {
         id: player.id,
         display_name: nextPlayer.display_name,
         favorite_commander: nextPlayer.favorite_commander || null,
-        background_image: nextPlayer.background_image || null
+        background_image: nextPlayer.background_image || null,
+        moxfield_deck_url: nextPlayer.moxfield_deck_url || null
       })
     });
 
@@ -110,37 +115,16 @@ export default function PlayersPage() {
     );
   }
 
-  async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  }
-
   return (
     <main className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
       <section className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5">
+        <InteriorNav />
         <header className="flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Button asChild variant="ghost" className="mb-3 w-fit">
-              <Link href="/games">
-                <ArrowLeft className="h-4 w-4" />
-                Games
-              </Link>
-            </Button>
             <h1 className="text-3xl font-black">Players</h1>
             <p className="mt-1 text-sm text-muted-foreground">{email || "Login to save players."}</p>
           </div>
-          {email ? (
-            <Button variant="outline" onClick={() => void signOut()}>
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          ) : (
-            <Button asChild>
-              <Link href="/login">Login</Link>
-            </Button>
-          )}
         </header>
 
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -154,6 +138,10 @@ export default function PlayersPage() {
               <div className="space-y-2">
                 <Label htmlFor="favorite-commander">Favorite commander</Label>
                 <Input id="favorite-commander" value={favoriteCommander} onChange={(event) => setFavoriteCommander(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="moxfield-deck-url">Moxfield decklist</Label>
+                <Input id="moxfield-deck-url" value={moxfieldDeckUrl} onChange={(event) => setMoxfieldDeckUrl(event.target.value)} placeholder="https://www.moxfield.com/decks/..." />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="background-image">Profile image</Label>
@@ -194,10 +182,39 @@ export default function PlayersPage() {
                         {player.favorite_commander ? (
                           <p className="mt-1 truncate text-sm text-muted-foreground">{player.favorite_commander}</p>
                         ) : null}
+                        {player.moxfield_deck_url ? (
+                          <a href={player.moxfield_deck_url} target="_blank" rel="noreferrer" className="mt-2 block truncate text-xs font-semibold text-primary">
+                            Moxfield decklist
+                          </a>
+                        ) : null}
                       </div>
                       {savingPlayerId === player.id ? <Loader2 className="mt-1 h-4 w-4 shrink-0 animate-spin text-primary" /> : null}
                     </div>
                     <details className="mt-4 rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                        <ImageIcon className="h-4 w-4 text-primary" />
+                        Decklist
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor={`${player.id}-moxfield`}>Moxfield URL</Label>
+                        <Input
+                          id={`${player.id}-moxfield`}
+                          value={player.moxfield_deck_url ?? ""}
+                          onChange={(event) => {
+                            setPlayers((current) =>
+                              current.map((candidate) =>
+                                candidate.id === player.id
+                                  ? { ...candidate, moxfield_deck_url: event.target.value }
+                                  : candidate
+                              )
+                            );
+                          }}
+                          onBlur={(event) => void updatePlayer(player, { moxfield_deck_url: event.target.value })}
+                          placeholder="https://www.moxfield.com/decks/..."
+                        />
+                      </div>
+                    </details>
+                    <details className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2">
                       <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
                         <ImageIcon className="h-4 w-4 text-primary" />
                         Profile image

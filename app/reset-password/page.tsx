@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
+import { InteriorNav } from "@/components/interior-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,14 +76,9 @@ export default function ResetPasswordPage() {
   return (
     <main className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-5 px-4">
-        <Button asChild variant="ghost" className="w-fit">
-          <Link href="/login">
-            <ArrowLeft className="h-4 w-4" />
-            Login
-          </Link>
-        </Button>
-        <div className="rounded-lg border border-border bg-background/75 p-5 backdrop-blur">
+      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-5 px-4 py-5">
+        <InteriorNav />
+        <div className="mx-auto w-full max-w-md rounded-lg border border-border bg-background/75 p-5 backdrop-blur">
           <div className="mb-5">
             <h1 className="text-3xl font-black">Reset password</h1>
             <p className="mt-2 text-sm text-muted-foreground">

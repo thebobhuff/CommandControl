@@ -1,6 +1,6 @@
 # Commander Control
 
-Commander Control is a Next.js app for running Magic: The Gathering Commander games from a tablet and displaying game state on a TV. It supports local table play, TV display mode, Supabase login, saved games, saved player profiles, Scryfall card-art backgrounds, and common Commander-specific counters.
+Commander Control is a Next.js app for running Magic: The Gathering Commander games from a tablet and displaying game state on a TV. It supports local table play, TV display mode, Supabase login, games, saved player profiles, Scryfall card-art backgrounds, and common Commander-specific counters.
 
 Repository: https://github.com/thebobhuff/CommandControl.git
 
@@ -13,7 +13,7 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 - Scryfall search for game/player background art.
 - Supabase password and magic-link login.
 - Password reset email delivery through Resend, Brevo, then Supabase fallback.
-- Supabase-backed saved game states.
+- Supabase-backed game states.
 - Supabase-backed saved player profiles.
 - Commander damage tracking per opponent.
 - Poison, experience, energy, and treasure counters.
@@ -45,11 +45,12 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 | `/display` | TV display view |
 | `/login` | Supabase password, signup, magic-link, and reset-link login |
 | `/reset-password` | Password reset form |
-| `/games` | Saved Supabase games |
+| `/games` | Supabase-backed games |
 | `/players` | Saved player profiles |
 | `/api/auth/password-reset` | Password reset email API |
 | `/api/game` | Current game state API |
-| `/api/games` | Saved games API |
+| `/api/game-invites` | Game invite API |
+| `/api/games` | Games API |
 | `/api/players` | Saved player profiles API |
 
 ## Getting Started
@@ -130,12 +131,16 @@ The migration lives at:
 
 ```text
 supabase/migrations/20260621120500_create_commander_tables.sql
+supabase/migrations/20260621162000_add_commander_game_tokens.sql
+supabase/migrations/20260621203000_add_commander_game_invites.sql
+supabase/migrations/20260621204500_add_player_moxfield_deck_urls.sql
 ```
 
 It creates:
 
 - `public.commander_games`
 - `public.commander_players`
+- `public.commander_game_invites`
 - Row-level security policies for each authenticated user
 - `updated_at` triggers
 
@@ -165,6 +170,8 @@ NEXT_PUBLIC_SITE_URL=https://your-production-domain
 If `NEXT_PUBLIC_SITE_URL` is not set, magic links redirect back to the origin where the login form was opened. That is useful for local testing, but it means links sent from `localhost` return to `localhost`.
 
 Password reset emails are sent by the app first. `/api/auth/password-reset` generates a Supabase recovery link with `SUPABASE_SERVICE_ROLE_KEY`, sends it through Resend first, falls back to Brevo if Resend is not configured or fails, then falls back to Supabase Auth email if app-managed delivery is unavailable. Keep the service role key server-only.
+
+Game invites use the same email delivery stack. Existing Commander Control users are added to the game immediately when invited by email. New people receive an invite email, and pending invites are claimed automatically when they sign in with the invited email address.
 
 For password reset links, also add:
 
@@ -242,6 +249,14 @@ Start production:
 ```bash
 NODE_ENV=production npm run start
 ```
+
+## Cookies
+
+The app shows an accept-only notice and sets a first-party consent cookie:
+
+- `commander-control.cookies.accepted.v1`
+
+Supabase manages the authentication session cookies. Commander Control does not store custom profile details in first-party cookies; account profile data is stored in Supabase auth metadata, saved player profiles are stored in `commander_players`, and game access tokens are stored in browser storage for route handoff.
 
 ## Publishing Without Git Push
 

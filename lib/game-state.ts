@@ -16,6 +16,7 @@ export type SavedGameSummary = {
   id: string;
   name: string;
   is_active: boolean;
+  access_role?: "owner" | "invited";
   display_token: string | null;
   control_token: string | null;
   created_at: string;
