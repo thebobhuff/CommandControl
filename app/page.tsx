@@ -4,10 +4,37 @@ import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { ActiveGamesList } from "@/components/active-games-list";
 import { HomeNav } from "@/components/home-nav";
 import { Button } from "@/components/ui/button";
+import { siteConfig } from "@/lib/site";
 
 export default function Home() {
+  const softwareApplicationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: siteConfig.name,
+    applicationCategory: "GameApplication",
+    operatingSystem: "Web",
+    url: siteConfig.url,
+    description: siteConfig.description,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD"
+    },
+    featureList: [
+      "Tablet controller for Magic: The Gathering Commander games",
+      "TV display for life totals and commander damage",
+      "Saved player profiles with Scryfall card art",
+      "Commander damage, poison, monarch, initiative, city blessing, and token counters",
+      "Shareable view-only game links"
+    ]
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
       <BackgroundBeams />
       <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-4 sm:px-6">
         <HomeNav />
@@ -23,10 +50,10 @@ export default function Home() {
           <div className="relative z-10 flex w-full flex-col justify-center gap-8 px-5 py-10 sm:px-8 lg:px-12">
             <div className="max-w-3xl">
               <h1 className="text-5xl font-black leading-tight text-foreground md:text-7xl">
-                Life totals built for the table and the big screen.
+                MTG Commander life tracker for tablet and TV.
               </h1>
               <p className="mt-5 max-w-2xl text-lg font-medium text-white/78">
-                Run the game from a tablet, show player boards on a TV, and pull card art from Scryfall for custom player backgrounds.
+                Run Magic: The Gathering Commander games from a tablet, show synchronized player boards on a TV, track commander damage, and save player profiles with Scryfall card art.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
