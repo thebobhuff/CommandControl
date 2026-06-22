@@ -170,6 +170,44 @@
   }
 }
 
+@keyframes winner-celebration {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgb(244 184 64 / 0.45), 0 0 18px rgb(244 184 64 / 0.28);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px rgb(244 184 64 / 0.92), 0 0 54px rgb(244 184 64 / 0.58);
+  }
+}
+
+@keyframes winner-rays {
+  0% {
+    opacity: 0.25;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.65;
+  }
+  100% {
+    opacity: 0.25;
+    transform: scale(1.08) rotate(14deg);
+  }
+}
+
+@keyframes winner-sparkles {
+  0% {
+    background-position: 0 0, 24px 40px, 80px 10px;
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.95;
+  }
+  100% {
+    background-position: 120px -160px, 160px -120px, 220px -180px;
+    opacity: 0.35;
+  }
+}
+
 .life-gain-pulse {
   animation: life-gain-pulse 850ms ease-out;
 }
@@ -196,4 +234,27 @@
 
 .skull-burst {
   animation: skull-burst 920ms ease-out forwards;
+}
+
+.winner-celebration {
+  animation: winner-celebration 1.8s ease-in-out infinite;
+}
+
+.winner-rays {
+  background:
+    radial-gradient(circle at 22% 28%, rgb(244 184 64 / 0.38), transparent 18%),
+    radial-gradient(circle at 76% 62%, rgb(255 255 255 / 0.22), transparent 16%),
+    conic-gradient(from 0deg at 50% 50%, transparent, rgb(244 184 64 / 0.2), transparent, rgb(255 255 255 / 0.12), transparent);
+  mix-blend-mode: screen;
+  animation: winner-rays 3.4s ease-in-out infinite alternate;
+}
+
+.winner-sparkles {
+  background-image:
+    radial-gradient(circle, rgb(244 184 64 / 0.95) 0 2px, transparent 3px),
+    radial-gradient(circle, rgb(255 255 255 / 0.9) 0 1.5px, transparent 3px),
+    radial-gradient(circle, rgb(52 211 153 / 0.65) 0 2px, transparent 3px);
+  background-size: 120px 120px, 170px 170px, 210px 210px;
+  mix-blend-mode: screen;
+  animation: winner-sparkles 4s linear infinite;
 }

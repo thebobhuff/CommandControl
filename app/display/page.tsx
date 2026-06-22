@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Crown, Dices, Gem, Moon, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
+import { Crown, Dices, ExternalLink, Gem, Moon, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
@@ -18,11 +18,13 @@ import { cn } from "@/lib/utils";
 export default function DisplayPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
   const [connected, setConnected] = useState(false);
+  const [displayQrUrl, setDisplayQrUrl] = useState("");
   const [, setClockTick] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     hydrateGameAccessFromUrl();
+    setDisplayQrUrl(window.location.href);
 
     const refresh = () => {
       void fetchServerGame()
@@ -67,6 +69,7 @@ export default function DisplayPage() {
 
   const activePlayer = game.players.find((player) => player.id === game.activePlayerId);
   const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
+  const winner = game.players.find((player) => player.id === game.winnerPlayerId);
   const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
 
   return (
@@ -76,7 +79,9 @@ export default function DisplayPage() {
         connected={connected}
         activePlayer={activePlayer}
         randomPlayer={randomPlayer}
+        winner={winner}
         timerSeconds={timerSeconds}
+        displayQrUrl={displayQrUrl}
       />
       <div className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1 p-1", gridClass)}>
         {game.players.map((player) => (
@@ -87,6 +92,7 @@ export default function DisplayPage() {
             compact={game.players.length >= 4}
             isActive={game.activePlayerId === player.id}
             isRandom={game.randomPlayerId === player.id}
+            isWinner={game.winnerPlayerId === player.id}
           />
         ))}
       </div>
@@ -99,13 +105,17 @@ function GameStatusBar({
   connected,
   activePlayer,
   randomPlayer,
-  timerSeconds
+  winner,
+  timerSeconds,
+  displayQrUrl
 }: {
   game: CommanderGame;
   connected: boolean;
   activePlayer?: CommanderPlayer;
   randomPlayer?: CommanderPlayer;
+  winner?: CommanderPlayer;
   timerSeconds: number;
+  displayQrUrl: string;
 }) {
   const monarch = game.players.find((player) => player.isMonarch);
   const initiative = game.players.find((player) => player.hasInitiative);
@@ -145,11 +155,14 @@ function GameStatusBar({
         {activePlayer ? <StatusItem label="Turn" value={activePlayer.name} /> : null}
         <StatusItem label={game.timerStartedAt ? "Timer Running" : "Timer"} value={timerSeconds ? formatDuration(timerSeconds) : "0:00"} icon={<Timer className="h-4 w-4" />} />
         {randomPlayer ? <StatusItem label="Pick" value={randomPlayer.name} /> : null}
+        {winner ? <StatusItem label="Winner" value={winner.name} icon={<Trophy className="h-4 w-4" />} /> : null}
         {game.diceRoll ? <StatusItem label="d20" value={game.diceRoll.toString()} icon={<Dices className="h-4 w-4" />} /> : null}
         {monarch ? <StatusItem label="Monarch" value={monarch.name} icon={<Crown className="h-4 w-4" />} /> : null}
         {initiative ? <StatusItem label="Initiative" value={initiative.name} icon={<Sparkles className="h-4 w-4" />} /> : null}
         {cityLabel ? <StatusItem label="City Blessing" value={cityLabel} icon={<Trophy className="h-4 w-4" />} /> : null}
       </div>
+
+      {game.showDisplayQr && displayQrUrl ? <DisplayQrBarItem url={displayQrUrl} /> : null}
 
       <Button asChild size="icon" variant="ghost" className="h-11 w-11 shrink-0 bg-white/5 text-white hover:bg-white/10 sm:h-12 sm:w-12">
         <Link href="/control" aria-label="Open tablet controls">
@@ -157,6 +170,20 @@ function GameStatusBar({
         </Link>
       </Button>
     </header>
+  );
+}
+
+function DisplayQrBarItem({ url }: { url: string }) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=96x96&margin=6&data=${encodeURIComponent(url)}`;
+
+  return (
+    <div className="hidden h-14 shrink-0 items-center gap-2 rounded-md border border-white/10 bg-white/[0.07] px-2 backdrop-blur sm:flex">
+      <img src={qrSrc} alt="View-only game QR code" className="h-11 w-11 rounded bg-white p-1" />
+      <div className="hidden min-w-0 lg:block">
+        <p className="text-[10px] font-black uppercase tracking-wider text-primary">Scan TV</p>
+        <p className="max-w-28 truncate text-[10px] font-semibold text-white/55">View-only link</p>
+      </div>
+    </div>
   );
 }
 
@@ -177,13 +204,15 @@ function PlayerDisplay({
   players,
   compact,
   isActive,
-  isRandom
+  isRandom,
+  isWinner
 }: {
   player: CommanderPlayer;
   players: CommanderPlayer[];
   compact: boolean;
   isActive: boolean;
   isRandom: boolean;
+  isWinner: boolean;
 }) {
   const previousLife = useRef(player.life);
   const previousPoison = useRef(player.poison);
@@ -216,7 +245,8 @@ function PlayerDisplay({
         "relative flex h-full min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950",
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
-        poisonBurst && "poison-pulse"
+        poisonBurst && "poison-pulse",
+        isWinner && "winner-celebration"
       )}
       style={{
         backgroundImage: player.backgroundImage
@@ -228,6 +258,12 @@ function PlayerDisplay({
     >
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:48px_48px] opacity-25" />
       {eliminated ? <div className="absolute inset-0 bg-destructive/25" /> : null}
+      {isWinner ? (
+        <>
+          <div className="winner-rays pointer-events-none absolute inset-0 z-20" />
+          <div className="winner-sparkles pointer-events-none absolute inset-0 z-30" />
+        </>
+      ) : null}
       {lifeBurst?.delta && lifeBurst.delta > 0 ? (
         <Star
           key={`star-${lifeBurst.key}`}
@@ -258,9 +294,21 @@ function PlayerDisplay({
                 {player.partnerCommanderName ? ` / ${player.partnerCommanderName}` : ""}
               </p>
             ) : null}
+            {player.moxfieldDeckUrl ? (
+              <a
+                href={player.moxfieldDeckUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex max-w-full items-center gap-1 rounded-md bg-black/45 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white/80 ring-1 ring-white/10 transition hover:text-primary lg:text-xs"
+              >
+                <ExternalLink className="h-3 w-3 shrink-0" />
+                <span className="truncate">Moxfield decklist</span>
+              </a>
+            ) : null}
           </div>
           <div className="flex max-w-[45%] flex-wrap justify-end gap-1">
             {isActive ? <DisplayBadge>Turn</DisplayBadge> : null}
+            {isWinner ? <DisplayBadge>Winner</DisplayBadge> : null}
             {isRandom ? <DisplayBadge>Pick</DisplayBadge> : null}
             {player.isMonarch ? <DisplayBadge>Monarch</DisplayBadge> : null}
             {player.hasInitiative ? <DisplayBadge>Initiative</DisplayBadge> : null}

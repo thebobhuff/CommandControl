@@ -14,6 +14,7 @@ export type CommanderPlayer = {
   hasCityBlessing: boolean;
   backgroundImage: string;
   backgroundCardName?: string;
+  moxfieldDeckUrl: string;
 };
 
 export type DayNight = "day" | "night" | null;
@@ -26,6 +27,8 @@ export type CommanderGame = {
   turnSeconds: number;
   timerStartedAt: number | null;
   randomPlayerId: string | null;
+  winnerPlayerId: string | null;
+  showDisplayQr: boolean;
   diceRoll: number | null;
   updatedAt: number;
 };
@@ -75,7 +78,8 @@ export function createDefaultGame(): CommanderGame {
     hasInitiative: false,
     hasCityBlessing: false,
     commanderDamage: {},
-    backgroundImage: ""
+    backgroundImage: "",
+    moxfieldDeckUrl: ""
   }));
 
   return hydrateCommanderDamage({
@@ -86,6 +90,8 @@ export function createDefaultGame(): CommanderGame {
     turnSeconds: 0,
     timerStartedAt: null,
     randomPlayerId: null,
+    winnerPlayerId: null,
+    showDisplayQr: false,
     diceRoll: null,
     updatedAt: Date.now()
   });
@@ -95,6 +101,7 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
   const ids = game.players.map((player) => player.id);
   const activePlayerId = game.activePlayerId && ids.includes(game.activePlayerId) ? game.activePlayerId : ids[0] ?? null;
   const randomPlayerId = game.randomPlayerId && ids.includes(game.randomPlayerId) ? game.randomPlayerId : null;
+  const winnerPlayerId = game.winnerPlayerId && ids.includes(game.winnerPlayerId) ? game.winnerPlayerId : null;
 
   return {
     ...game,
@@ -103,6 +110,8 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
     turnSeconds: game.turnSeconds ?? 0,
     timerStartedAt: game.timerStartedAt ?? null,
     randomPlayerId,
+    winnerPlayerId,
+    showDisplayQr: game.showDisplayQr ?? false,
     diceRoll: game.diceRoll ?? null,
     players: game.players.map((player) => ({
       ...player,
@@ -116,6 +125,7 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
       hasInitiative: player.hasInitiative ?? false,
       hasCityBlessing: player.hasCityBlessing ?? false,
       backgroundImage: player.backgroundImage ?? "",
+      moxfieldDeckUrl: player.moxfieldDeckUrl ?? "",
       commanderDamage: ids.reduce<Record<string, number>>((acc, id) => {
         if (id !== player.id) {
           acc[id] = player.commanderDamage?.[id] ?? 0;

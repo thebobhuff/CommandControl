@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("commander_players")
-    .select("id,display_name,favorite_commander,background_image,created_at,updated_at")
+    .select("id,display_name,favorite_commander,background_image,moxfield_deck_url,created_at,updated_at")
     .eq("owner_id", user.id)
     .order("display_name", { ascending: true });
 
@@ -43,9 +43,10 @@ export async function POST(request: Request) {
       owner_id: user.id,
       display_name: body.display_name,
       favorite_commander: body.favorite_commander ?? null,
-      background_image: body.background_image ?? null
+      background_image: body.background_image ?? null,
+      moxfield_deck_url: body.moxfield_deck_url ?? null
     })
-    .select("id,display_name,favorite_commander,background_image,created_at,updated_at")
+    .select("id,display_name,favorite_commander,background_image,moxfield_deck_url,created_at,updated_at")
     .single();
 
   if (error) {
@@ -75,11 +76,12 @@ export async function PATCH(request: Request) {
     .update({
       display_name: body.display_name,
       favorite_commander: body.favorite_commander ?? null,
-      background_image: body.background_image ?? null
+      background_image: body.background_image ?? null,
+      moxfield_deck_url: body.moxfield_deck_url ?? null
     })
     .eq("id", body.id)
     .eq("owner_id", user.id)
-    .select("id,display_name,favorite_commander,background_image,created_at,updated_at")
+    .select("id,display_name,favorite_commander,background_image,moxfield_deck_url,created_at,updated_at")
     .single();
 
   if (error) {

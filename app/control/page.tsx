@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Crown,
+  Copy,
   Dices,
   Gem,
   LogIn,
   Monitor,
   Moon,
+  QrCode,
   RotateCcw,
   Save,
   Skull,
@@ -46,11 +48,20 @@ import {
   type CommanderPlayer
 } from "@/lib/game-state";
 
+type SavedPlayerProfile = {
+  id: string;
+  display_name: string;
+  favorite_commander: string | null;
+  background_image: string | null;
+  moxfield_deck_url: string | null;
+};
+
 export default function ControlPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
   const [serverStatus, setServerStatus] = useState("Local state loaded");
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
   const [setupPlayerId, setSetupPlayerId] = useState<string | null>(null);
+  const [savedPlayers, setSavedPlayers] = useState<SavedPlayerProfile[]>([]);
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
     displayToken: null,
@@ -72,6 +83,19 @@ export default function ControlPage() {
         setServerStatus("Connected to game server");
       })
       .catch(() => setServerStatus("Using local state until the server responds"));
+
+    void fetch("/api/players", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { players: [] }))
+      .then((result: { players?: SavedPlayerProfile[] }) => {
+        if (mounted) {
+          setSavedPlayers(result.players ?? []);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setSavedPlayers([]);
+        }
+      });
 
     const unsubscribe = subscribeToGame((nextGame) => setGame(nextGame));
     return () => {
@@ -102,6 +126,21 @@ export default function ControlPage() {
         )
       }))
     );
+  }
+
+  function assignSavedPlayer(playerId: string, savedPlayerId: string) {
+    const savedPlayer = savedPlayers.find((candidate) => candidate.id === savedPlayerId);
+    if (!savedPlayer) {
+      return;
+    }
+
+    patchPlayer(playerId, {
+      name: savedPlayer.display_name,
+      commanderName: savedPlayer.favorite_commander ?? "",
+      backgroundImage: savedPlayer.background_image ?? "",
+      backgroundCardName: savedPlayer.favorite_commander ?? "",
+      moxfieldDeckUrl: savedPlayer.moxfield_deck_url ?? ""
+    });
   }
 
   function adjustLife(playerId: string, amount: number) {
@@ -188,7 +227,8 @@ export default function ControlPage() {
             hasInitiative: false,
             hasCityBlessing: false,
             commanderDamage: {},
-            backgroundImage: ""
+            backgroundImage: "",
+            moxfieldDeckUrl: ""
           }
         ]
       }))
@@ -240,6 +280,14 @@ export default function ControlPage() {
 
   function rollD20() {
     commit({ ...game, diceRoll: Math.floor(Math.random() * 20) + 1 });
+  }
+
+  function setWinner(playerId: string) {
+    commit({
+      ...game,
+      winnerPlayerId: game.winnerPlayerId === playerId ? null : playerId,
+      timerStartedAt: null
+    });
   }
 
   function setActivePlayer(playerId: string) {
@@ -326,6 +374,7 @@ export default function ControlPage() {
             onToggleTimer={toggleTimer}
             onSetActivePlayer={setActivePlayer}
             onResetTimer={resetTimer}
+            onToggleDisplayQr={() => commit({ ...game, showDisplayQr: !game.showDisplayQr })}
           />
         </aside>
 
@@ -336,11 +385,15 @@ export default function ControlPage() {
                 <PlayerControl
                   player={player}
                   players={game.players}
+                  savedPlayers={savedPlayers}
+                  isWinner={game.winnerPlayerId === player.id}
                   setupOpen={setupPlayerId === player.id}
                   onToggleSetup={() => setSetupPlayerId((current) => (current === player.id ? null : player.id))}
+                  onAssignSavedPlayer={(savedPlayerId) => assignSavedPlayer(player.id, savedPlayerId)}
                   onName={(name) => patchPlayer(player.id, { name })}
                   onCommanderName={(commanderName) => patchPlayer(player.id, { commanderName })}
                   onPartnerCommanderName={(partnerCommanderName) => patchPlayer(player.id, { partnerCommanderName })}
+                  onMoxfieldDeckUrl={(moxfieldDeckUrl) => patchPlayer(player.id, { moxfieldDeckUrl })}
                   onBackgroundImage={(backgroundImage) => patchPlayer(player.id, { backgroundImage })}
                   onSelectCommanderArt={(imageUrl, cardName) =>
                     patchPlayer(player.id, {
@@ -355,6 +408,7 @@ export default function ControlPage() {
                   onCommanderDamage={adjustCommanderDamage}
                   onCounter={adjustPlayerCounter}
                   onStatus={togglePlayerStatus}
+                  onWinner={() => setWinner(player.id)}
                   onRemove={() => removePlayer(player.id)}
                   canRemove={game.players.length > 2}
                 />
@@ -383,7 +437,8 @@ function ControlSidebar({
   onRollD20,
   onToggleTimer,
   onSetActivePlayer,
-  onResetTimer
+  onResetTimer,
+  onToggleDisplayQr
 }: {
   game: CommanderGame;
   serverStatus: string;
@@ -401,7 +456,16 @@ function ControlSidebar({
   onToggleTimer: () => void;
   onSetActivePlayer: (playerId: string) => void;
   onResetTimer: () => void;
+  onToggleDisplayQr: () => void;
 }) {
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  async function copyShareLink() {
+    await navigator.clipboard.writeText(displayUrl);
+    setCopiedShareLink(true);
+    window.setTimeout(() => setCopiedShareLink(false), 1800);
+  }
+
   return (
     <div className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background/85 p-3 backdrop-blur">
       <div className="flex items-start gap-3">
@@ -484,6 +548,10 @@ function ControlSidebar({
             <Timer className="h-4 w-4" />
             {game.timerStartedAt ? "Pause" : "Timer"}
           </Button>
+          <Button variant={game.showDisplayQr ? "secondary" : "outline"} size="sm" onClick={onToggleDisplayQr}>
+            <QrCode className="h-4 w-4" />
+            TV QR
+          </Button>
         </div>
 
         <div className="grid gap-2">
@@ -508,6 +576,10 @@ function ControlSidebar({
       <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
         <summary className="cursor-pointer font-semibold text-foreground">TV URL</summary>
         <div className="mt-1 break-all font-mono text-xs text-foreground">{displayUrl}</div>
+        <Button type="button" size="sm" variant="outline" className="mt-2 w-full" onClick={() => void copyShareLink()}>
+          <Copy className="h-4 w-4" />
+          {copiedShareLink ? "Copied view-only link" : "Copy view-only link"}
+        </Button>
       </details>
       <details className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
         <summary className="cursor-pointer font-semibold text-foreground">Tablet URL</summary>
@@ -520,11 +592,15 @@ function ControlSidebar({
 function PlayerControl({
   player,
   players,
+  savedPlayers,
+  isWinner,
   setupOpen,
   onToggleSetup,
+  onAssignSavedPlayer,
   onName,
   onCommanderName,
   onPartnerCommanderName,
+  onMoxfieldDeckUrl,
   onBackgroundImage,
   onSelectCommanderArt,
   onClearCommanderArt,
@@ -533,16 +609,21 @@ function PlayerControl({
   onCommanderDamage,
   onCounter,
   onStatus,
+  onWinner,
   onRemove,
   canRemove
 }: {
   player: CommanderPlayer;
   players: CommanderPlayer[];
+  savedPlayers: SavedPlayerProfile[];
+  isWinner: boolean;
   setupOpen: boolean;
   onToggleSetup: () => void;
+  onAssignSavedPlayer: (savedPlayerId: string) => void;
   onName: (name: string) => void;
   onCommanderName: (commanderName: string) => void;
   onPartnerCommanderName: (partnerCommanderName: string) => void;
+  onMoxfieldDeckUrl: (moxfieldDeckUrl: string) => void;
   onBackgroundImage: (backgroundImage: string) => void;
   onSelectCommanderArt: (imageUrl: string, cardName: string) => void;
   onClearCommanderArt: () => void;
@@ -551,6 +632,7 @@ function PlayerControl({
   onCommanderDamage: (playerId: string, sourceId: string, amount: number) => void;
   onCounter: (playerId: string, key: "experience" | "energy" | "treasure", amount: number) => void;
   onStatus: (playerId: string, key: "isMonarch" | "hasInitiative" | "hasCityBlessing") => void;
+  onWinner: () => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
@@ -588,6 +670,33 @@ function PlayerControl({
 
       {setupOpen ? (
         <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
+          <div className="space-y-1">
+            <Label htmlFor={`${player.id}-saved-player`} className="text-xs">
+              Saved player
+            </Label>
+            <select
+              id={`${player.id}-saved-player`}
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              defaultValue=""
+              onChange={(event) => {
+                if (event.target.value) {
+                  onAssignSavedPlayer(event.target.value);
+                  event.target.value = "";
+                }
+              }}
+              disabled={savedPlayers.length === 0}
+            >
+              <option value="">
+                {savedPlayers.length === 0 ? "Login and save profiles first" : "Assign saved profile..."}
+              </option>
+              {savedPlayers.map((savedPlayer) => (
+                <option key={savedPlayer.id} value={savedPlayer.id}>
+                  {savedPlayer.display_name}
+                  {savedPlayer.favorite_commander ? ` - ${savedPlayer.favorite_commander}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor={`${player.id}-commander`} className="text-xs">
@@ -613,6 +722,18 @@ function PlayerControl({
                 placeholder="Optional"
               />
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`${player.id}-moxfield`} className="text-xs">
+              Moxfield decklist
+            </Label>
+            <Input
+              id={`${player.id}-moxfield`}
+              value={player.moxfieldDeckUrl}
+              onChange={(event) => onMoxfieldDeckUrl(event.target.value)}
+              className="h-8 px-2 text-xs"
+              placeholder="https://www.moxfield.com/decks/..."
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor={`${player.id}-background-image`} className="text-xs">
@@ -688,7 +809,7 @@ function PlayerControl({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-4 gap-1">
         <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "outline"} onClick={() => onStatus(player.id, "isMonarch")}>
           <Crown className="h-4 w-4" />
         </Button>
@@ -697,6 +818,9 @@ function PlayerControl({
         </Button>
         <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
           City
+        </Button>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={isWinner ? "secondary" : "outline"} onClick={onWinner}>
+          <Trophy className="h-4 w-4" />
         </Button>
       </div>
 
