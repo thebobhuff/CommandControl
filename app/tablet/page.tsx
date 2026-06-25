@@ -21,6 +21,7 @@ import {
   Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   fetchServerGame,
   getCurrentGameAccess,
@@ -93,6 +94,10 @@ export default function TabletPage() {
         )
       }))
     );
+  }
+
+  function setActivePlayer(playerId: string) {
+    commit({ ...game, activePlayerId: playerId, turnSeconds: 0, timerStartedAt: game.timerStartedAt ? Date.now() : null });
   }
 
   function adjustLife(playerId: string, amount: number) {
@@ -227,8 +232,8 @@ export default function TabletPage() {
   }, [gameAccess]);
 
   return (
-    <main className="safe-screen flex flex-col bg-black text-foreground">
-      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-white/10 bg-black/80 px-2 py-2 backdrop-blur sm:px-3">
+    <main className="fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
+      <header className="z-30 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-black/85 px-2 py-1.5 backdrop-blur sm:min-h-14 sm:px-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
           <span className="truncate text-xs font-black uppercase tracking-wider sm:text-sm">
@@ -249,22 +254,19 @@ export default function TabletPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 p-1 md:flex-row">
-        <aside className="md:w-80 lg:w-88 xl:w-96 md:shrink-0">
-          <TabletControlRail
-            game={game}
-            connected={connected}
-            timerSeconds={timerSeconds}
-            onResetLifeTotals={resetLifeTotals}
-            onCycleDayNight={cycleDayNight}
-            onChooseRandomPlayer={chooseRandomPlayer}
-            onRollD20={rollD20}
-            onToggleTimer={toggleTimer}
-            displayUrl={displayUrl}
-            controlUrl={controlUrl}
-          />
-        </aside>
-        <section className={cn("grid min-h-[calc(100vh-57px)] min-h-[calc(100svh-57px)] flex-1 auto-rows-fr gap-1 md:min-h-0", gridClass)}>
+      <TabletControlBar
+        game={game}
+        timerSeconds={timerSeconds}
+        onResetLifeTotals={resetLifeTotals}
+        onCycleDayNight={cycleDayNight}
+        onChooseRandomPlayer={chooseRandomPlayer}
+        onRollD20={rollD20}
+        onToggleTimer={toggleTimer}
+        onSetActivePlayer={setActivePlayer}
+      />
+
+      <div className="min-h-0 flex-1 p-1">
+        <section className={cn("grid h-full min-h-0 auto-rows-fr gap-1", gridClass)}>
           {game.players.map((player) => (
             <TabletPlayerPanel
               key={player.id}
@@ -272,6 +274,8 @@ export default function TabletPage() {
               players={game.players}
               isActive={game.activePlayerId === player.id}
               isRandom={game.randomPlayerId === player.id}
+              onName={(name) => patchPlayer(player.id, { name })}
+              onCommanderName={(commanderName) => patchPlayer(player.id, { commanderName })}
               onLife={adjustLife}
               onPoison={adjustPoison}
               onCommanderDamage={adjustCommanderDamage}
@@ -285,93 +289,76 @@ export default function TabletPage() {
   );
 }
 
-function TabletControlRail({
+function TabletControlBar({
   game,
-  connected,
   timerSeconds,
   onResetLifeTotals,
   onCycleDayNight,
   onChooseRandomPlayer,
   onRollD20,
   onToggleTimer,
-  displayUrl,
-  controlUrl
+  onSetActivePlayer
 }: {
   game: CommanderGame;
-  connected: boolean;
   timerSeconds: number;
   onResetLifeTotals: () => void;
   onCycleDayNight: () => void;
   onChooseRandomPlayer: () => void;
   onRollD20: () => void;
   onToggleTimer: () => void;
-  displayUrl: string;
-  controlUrl: string;
+  onSetActivePlayer: (playerId: string) => void;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-md border border-white/10 bg-black/70 p-2 backdrop-blur sm:p-3">
-      <div className="flex items-center justify-between gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Tablet Controls</p>
-          <p className="truncate text-sm font-black text-white/90">
-            {connected ? "Live Session" : "Offline Session"}
-          </p>
-        </div>
-        <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="justify-start">
+    <div className="shrink-0 border-b border-white/10 bg-black/75 px-1.5 py-1.5 backdrop-blur">
+      <div className="flex items-center gap-1 overflow-x-auto">
+        <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="h-8 shrink-0 px-2 text-xs">
           <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
-        <Button variant={game.timerStartedAt ? "secondary" : "outline"} size="sm" onClick={onToggleTimer} className="justify-start">
+        <Button variant={game.timerStartedAt ? "secondary" : "outline"} size="sm" onClick={onToggleTimer} className="h-8 shrink-0 px-2 text-xs">
           <Timer className="h-4 w-4" />
-          {game.timerStartedAt ? "Pause" : "Timer"}
+          {game.timerStartedAt ? "Pause" : timerSeconds ? formatDuration(timerSeconds) : "Timer"}
         </Button>
-        <Button variant="outline" size="sm" onClick={onCycleDayNight} className="justify-start">
+        <Button variant="outline" size="sm" onClick={onCycleDayNight} className="h-8 shrink-0 px-2 text-xs">
           {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           {game.dayNight ?? "Day/Night"}
         </Button>
-        <Button variant="outline" size="sm" onClick={onChooseRandomPlayer} className="justify-start">
+        <Button variant="outline" size="sm" onClick={onChooseRandomPlayer} className="h-8 shrink-0 px-2 text-xs">
           <Sparkles className="h-4 w-4" />
           Random
         </Button>
-        <Button variant="outline" size="sm" onClick={onRollD20} className="justify-start">
+        <Button variant="outline" size="sm" onClick={onRollD20} className="h-8 shrink-0 px-2 text-xs">
           <Dices className="h-4 w-4" />
           d20 {game.diceRoll ? game.diceRoll : ""}
         </Button>
-        <Button asChild variant="outline" size="sm" className="justify-start">
-          <Link href={displayUrl} aria-label="Open TV display">
-            <Monitor className="h-4 w-4" />
-            TV
-          </Link>
-        </Button>
-      </div>
-
-      <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
-        <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Status</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-black">
-          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{game.dayNight ?? "No day/night"}</span>
-          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{timerSeconds ? formatDuration(timerSeconds) : "0:00"}</span>
-          <span className="rounded-md bg-black/45 px-2 py-2 text-center">d20 {game.diceRoll ?? "-"}</span>
-          <span className="rounded-md bg-black/45 px-2 py-2 text-center">{game.randomPlayerId ? "Pick set" : "No pick"}</span>
-        </div>
-      </div>
-
-      <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
-        <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Links</p>
-        <div className="mt-2 grid gap-2">
-          <Button asChild variant="ghost" size="sm" className="justify-start">
-            <Link href={controlUrl} aria-label="Open setup controls">
-              <Settings className="h-4 w-4" />
-              Control
-            </Link>
-          </Button>
+        <div className="flex shrink-0 gap-1 border-l border-white/10 pl-1">
+          {game.players.map((player) => (
+            <Button
+              key={player.id}
+              variant={game.activePlayerId === player.id ? "secondary" : "outline"}
+              size="sm"
+              className="h-8 min-w-11 px-2 text-xs"
+              onClick={() => onSetActivePlayer(player.id)}
+            >
+              {shortName(player.name)}
+            </Button>
+          ))}
         </div>
       </div>
     </div>
   );
+}
+
+function shortName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "P";
+  }
+  const words = trimmed.split(/\s+/);
+  if (words.length > 1 && words[0].toLowerCase() === "player") {
+    return `P${words[1]?.slice(0, 1) ?? ""}`.toUpperCase();
+  }
+  return trimmed.slice(0, 6);
 }
 
 function TabletPlayerPanel({
@@ -379,6 +366,8 @@ function TabletPlayerPanel({
   players,
   isActive,
   isRandom,
+  onName,
+  onCommanderName,
   onLife,
   onPoison,
   onCommanderDamage,
@@ -389,6 +378,8 @@ function TabletPlayerPanel({
   players: CommanderPlayer[];
   isActive: boolean;
   isRandom: boolean;
+  onName: (name: string) => void;
+  onCommanderName: (commanderName: string) => void;
   onLife: (playerId: string, amount: number) => void;
   onPoison: (playerId: string, amount: number) => void;
   onCommanderDamage: (playerId: string, sourceId: string, amount: number) => void;
@@ -422,7 +413,7 @@ function TabletPlayerPanel({
   return (
     <article
       className={cn(
-        "relative isolate flex min-h-[320px] overflow-hidden rounded-md border border-white/10 bg-zinc-950 sm:min-h-[340px] md:min-h-[min(44svh,430px)]",
+        "relative isolate flex min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950",
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
         poisonBurst && "poison-pulse"
@@ -470,15 +461,22 @@ function TabletPlayerPanel({
         />
       ) : null}
 
-      <div className="relative z-20 flex w-full pointer-events-none flex-col justify-between gap-3 p-3 screen-text-shadow sm:p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-[clamp(1.45rem,4vw,3rem)] font-black leading-none">{player.name}</h2>
-            {player.commanderName || player.backgroundCardName ? (
-              <p className="mt-1 truncate text-xs font-black uppercase tracking-wider text-primary">
-                {player.commanderName || player.backgroundCardName}
-              </p>
-            ) : null}
+      <div className="pointer-events-none relative z-20 flex w-full flex-col justify-between gap-1.5 p-2 screen-text-shadow sm:p-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="pointer-events-auto grid min-w-0 flex-1 gap-1">
+            <Input
+              value={player.name}
+              onChange={(event) => onName(event.target.value)}
+              className="h-7 border-white/10 bg-black/45 px-2 text-sm font-black text-white shadow-none sm:h-8 sm:text-base"
+              aria-label={`${player.name} name`}
+            />
+            <Input
+              value={player.commanderName}
+              onChange={(event) => onCommanderName(event.target.value)}
+              className="h-7 border-white/10 bg-black/35 px-2 text-[11px] font-bold uppercase tracking-wider text-primary shadow-none placeholder:text-white/35 sm:h-8 sm:text-xs"
+              placeholder={player.backgroundCardName || "Commander"}
+              aria-label={`${player.name} commander`}
+            />
           </div>
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {isActive ? <Badge>Turn</Badge> : null}
@@ -490,11 +488,11 @@ function TabletPlayerPanel({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 sm:h-16 sm:w-16">
-            <Minus className="h-6 w-6 sm:h-8 sm:w-8" />
+        <div className="flex min-h-0 items-center justify-between gap-2">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 sm:h-12 sm:w-12">
+            <Minus className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
-          <div className="relative min-w-0 text-center text-[clamp(5.5rem,17vw,10rem)] font-black leading-none">
+          <div className="relative min-w-0 text-center text-[clamp(4.2rem,12vw,8rem)] font-black leading-none">
             {player.life}
             {lifeBurst ? (
               <span
@@ -509,20 +507,20 @@ function TabletPlayerPanel({
               </span>
             ) : null}
           </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 sm:h-16 sm:w-16">
-            <Plus className="h-6 w-6 sm:h-8 sm:w-8" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/45 sm:h-12 sm:w-12">
+            <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
 
         <div
           className={cn(
-            "pointer-events-auto grid gap-2 rounded-md bg-black/45 p-2 backdrop-blur",
+            "pointer-events-auto grid gap-1 rounded-md bg-black/45 p-1.5 backdrop-blur sm:gap-1.5 sm:p-2",
             poisonBurst && "poison-pulse"
           )}
         >
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => onPoison(player.id, -1)}>-</Button>
-            <div className="relative flex items-center justify-center gap-2 text-sm font-black">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onPoison(player.id, -1)}>-</Button>
+            <div className="relative flex items-center justify-center gap-1 text-xs font-black sm:text-sm">
               <Skull className="h-4 w-4 text-emerald-300" />
               Poison {player.poison}
               {poisonBurst ? (
@@ -535,10 +533,10 @@ function TabletPlayerPanel({
                 </span>
               ) : null}
             </div>
-            <Button size="sm" variant="outline" onClick={() => onPoison(player.id, 1)}>+</Button>
+            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onPoison(player.id, 1)}>+</Button>
           </div>
 
-          <div className="grid max-h-32 gap-1 overflow-y-auto pr-1 sm:max-h-40">
+          <div className="grid max-h-24 gap-1 overflow-y-auto pr-1 sm:max-h-28">
             <div className="grid grid-cols-3 gap-1">
               <MiniCounter
                 icon={<Trophy className="h-3.5 w-3.5" />}
@@ -560,13 +558,13 @@ function TabletPlayerPanel({
               />
             </div>
             <div className="grid grid-cols-3 gap-1">
-              <Button size="sm" variant={player.isMonarch ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "isMonarch")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "isMonarch")}>
                 <Crown className="h-3.5 w-3.5" />
               </Button>
-              <Button size="sm" variant={player.hasInitiative ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasInitiative")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasInitiative")}>
                 Init
               </Button>
-              <Button size="sm" variant={player.hasCityBlessing ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
                 City
               </Button>
             </div>
@@ -575,9 +573,9 @@ function TabletPlayerPanel({
               .map((source) => (
                 <div key={source.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1 text-xs">
                   <span className="truncate font-semibold">{source.name}</span>
-                  <span className="w-7 text-center text-base font-black">{player.commanderDamage[source.id] ?? 0}</span>
-                  <Button size="sm" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
-                  <Button size="sm" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
+                  <span className="w-7 text-center text-sm font-black">{player.commanderDamage[source.id] ?? 0}</span>
+                  <Button size="sm" className="h-7 px-2" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
+                  <Button size="sm" className="h-7 px-2" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
                 </div>
               ))}
           </div>
@@ -589,7 +587,7 @@ function TabletPlayerPanel({
 
 function Badge({ children, danger = false }: { children: React.ReactNode; danger?: boolean }) {
   return (
-    <span className={cn("rounded-md px-2 py-1 text-[10px] font-black uppercase", danger ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
+    <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase sm:px-2 sm:py-1 sm:text-[10px]", danger ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
       {children}
     </span>
   );
@@ -607,7 +605,7 @@ function MiniCounter({
   onPlus: () => void;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-black/35 px-1 py-1 text-xs">
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-black/35 px-1 py-0.5 text-xs">
       <button type="button" onClick={onMinus} className="rounded px-1">-</button>
       <span className="flex items-center justify-center gap-1 font-black">
         {icon}
