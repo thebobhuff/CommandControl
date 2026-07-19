@@ -25,11 +25,23 @@ export type VariantDeckCard = {
   imageUrl: string;
 };
 
+export type ArchenemyAiAction = "reveal_scheme" | "taunt" | "pressure_leader" | "recover" | "wait";
+
 export type CommanderGame = {
   startingLife: number;
   players: CommanderPlayer[];
   archenemyMode: boolean;
   archenemyPlayerId: string | null;
+  archenemyAiEnabled: boolean;
+  archenemyAiName: string;
+  archenemyAiPersona: string;
+  archenemyAiAvatar: string;
+  archenemyAiAccent: "gold" | "red" | "violet" | "green";
+  archenemyDeckPresetId: string;
+  archenemyDeckName: string;
+  archenemyAiTaunt: string;
+  archenemyAiPlan: string;
+  archenemyAiLastAction: ArchenemyAiAction | null;
   archenemyScheme: string;
   archenemySchemeCount: number;
   archenemyDeck: VariantDeckCard[];
@@ -105,6 +117,16 @@ export function createDefaultGame(): CommanderGame {
     players,
     archenemyMode: false,
     archenemyPlayerId: null,
+    archenemyAiEnabled: false,
+    archenemyAiName: "The Archenemy",
+    archenemyAiPersona: "A theatrical villain who enjoys schemes, table politics, and making the heroes feel surrounded.",
+    archenemyAiAvatar: "crown",
+    archenemyAiAccent: "gold",
+    archenemyDeckPresetId: "all-schemes",
+    archenemyDeckName: "All Scheme Cards",
+    archenemyAiTaunt: "",
+    archenemyAiPlan: "",
+    archenemyAiLastAction: null,
     archenemyScheme: "",
     archenemySchemeCount: 0,
     archenemyDeck: [],
@@ -139,6 +161,16 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
     ...game,
     archenemyMode,
     archenemyPlayerId: archenemyMode ? archenemyPlayerId : null,
+    archenemyAiEnabled: Boolean(game.archenemyAiEnabled),
+    archenemyAiName: game.archenemyAiName ?? "The Archenemy",
+    archenemyAiPersona: game.archenemyAiPersona ?? "A theatrical villain who enjoys schemes, table politics, and making the heroes feel surrounded.",
+    archenemyAiAvatar: game.archenemyAiAvatar ?? "crown",
+    archenemyAiAccent: game.archenemyAiAccent === "red" || game.archenemyAiAccent === "violet" || game.archenemyAiAccent === "green" || game.archenemyAiAccent === "gold" ? game.archenemyAiAccent : "gold",
+    archenemyDeckPresetId: game.archenemyDeckPresetId ?? "all-schemes",
+    archenemyDeckName: game.archenemyDeckName ?? "All Scheme Cards",
+    archenemyAiTaunt: game.archenemyAiTaunt ?? "",
+    archenemyAiPlan: game.archenemyAiPlan ?? "",
+    archenemyAiLastAction: hydrateArchenemyAiAction(game.archenemyAiLastAction),
     archenemyScheme: game.archenemyScheme ?? "",
     archenemySchemeCount: Math.max(0, game.archenemySchemeCount ?? 0),
     archenemyDeck: hydrateDeck(game.archenemyDeck),
@@ -178,6 +210,13 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
       }, {})
     }))
   };
+}
+
+function hydrateArchenemyAiAction(action: ArchenemyAiAction | null | undefined) {
+  if (action === "reveal_scheme" || action === "taunt" || action === "pressure_leader" || action === "recover" || action === "wait") {
+    return action;
+  }
+  return null;
 }
 
 function hydrateDeck(deck: VariantDeckCard[] | undefined) {
