@@ -1,12 +1,16 @@
 {
   "name": "commander-control",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "version:patch": "node scripts/semver.mjs patch",
+    "version:minor": "node scripts/semver.mjs minor",
+    "version:major": "node scripts/semver.mjs major",
+    "release:bundle": "git bundle create commander-control-v$(node -p \"require('./package.json').version\").bundle HEAD"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
