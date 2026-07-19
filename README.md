@@ -262,6 +262,32 @@ Start production:
 NODE_ENV=production npm run start
 ```
 
+## Versioning
+
+Commander Control uses semantic versioning.
+
+Use one of these commands before a release PR:
+
+```bash
+npm run version:patch
+npm run version:minor
+npm run version:major
+```
+
+The version script updates `package.json`, `package-lock.json`, and `CHANGELOG.md`. Keep the generated changelog section focused on user-visible changes, then validate with:
+
+```bash
+NODE_ENV=production npm run build
+```
+
+Create a release bundle from the committed release state:
+
+```bash
+npm run release:bundle
+```
+
+The bundle name follows the current package version, for example `commander-control-v0.3.0.bundle`.
+
 ## Cookies
 
 The app shows an accept-only notice and sets a first-party consent cookie:
