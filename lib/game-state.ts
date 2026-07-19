@@ -3,7 +3,7 @@
 import { createAccessToken, createDefaultGame, createId, hydrateCommanderDamage, type CommanderGame } from "@/lib/commander";
 
 export { createAccessToken, createDefaultGame, createId };
-export type { CommanderGame, CommanderPlayer } from "@/lib/commander";
+export type { CommanderGame, CommanderPlayer, VariantDeckCard } from "@/lib/commander";
 
 const STORAGE_KEY = "commander-tv-game";
 const GAME_ID_KEY = "commander-tv-game-id";

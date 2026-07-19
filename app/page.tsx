@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenCheck, Mail, Monitor, Tablet, TabletSmartphone } from "lucide-react";
+import { BookOpenCheck, Mail, Monitor, PlayCircle, Tablet, TabletSmartphone } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { ActiveGamesList } from "@/components/active-games-list";
 import { HomeNav } from "@/components/home-nav";
@@ -24,6 +24,7 @@ export default function Home() {
       "Tablet controller for Magic: The Gathering Commander games",
       "TV display for life totals and commander damage",
       "Saved player profiles with Scryfall card art",
+      "Archenemy mode with scheme tracking",
       "Commander damage, poison, monarch, initiative, city blessing, and token counters",
       "Shareable view-only game links"
     ]
@@ -133,6 +134,27 @@ export default function Home() {
               title="Track Commander extras"
               body="Use poison, commander damage, experience, energy, treasure, monarch, initiative, city blessing, turn timer, d20, and random player tools as needed."
             />
+            <HowToStep
+              step="7"
+              title="How to: Commander"
+              body="Watch a Commander format walkthrough before starting a table, then use Control or Tablet Mode to run the game state."
+              videoHref="https://www.youtube.com/watch?v=eaNjXcAqCAY"
+              videoAction="Commander video"
+            />
+            <HowToStep
+              step="8"
+              title="How to: Planechase"
+              body="Learn the planar deck and planar die flow, then load Planechase in Control to reveal full-card planes on the shared display."
+              videoHref="https://www.youtube.com/watch?v=wC98RS2YvJk"
+              videoAction="Planechase video"
+            />
+            <HowToStep
+              step="9"
+              title="How to: Archenemy"
+              body="Learn the one-vs-many scheme deck flow, then load Archenemy in Control to set schemes in motion on the TV."
+              videoHref="https://www.youtube.com/watch?v=HRT9PeDnX1E"
+              videoAction="Archenemy video"
+            />
           </div>
         </section>
       </section>
@@ -145,13 +167,17 @@ function HowToStep({
   title,
   body,
   href,
-  action
+  action,
+  videoHref,
+  videoAction
 }: {
   step: string;
   title: string;
   body: string;
   href?: string;
   action?: string;
+  videoHref?: string;
+  videoAction?: string;
 }) {
   return (
     <article className="flex min-h-44 flex-col justify-between gap-4 rounded-lg border border-border bg-card/85 p-4 backdrop-blur">
@@ -164,11 +190,21 @@ function HowToStep({
         </div>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
       </div>
-      {href && action ? (
-        <Button asChild variant="outline" size="sm" className="w-fit">
-          <Link href={href}>{action}</Link>
-        </Button>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {href && action ? (
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <Link href={href}>{action}</Link>
+          </Button>
+        ) : null}
+        {videoHref && videoAction ? (
+          <Button asChild variant="secondary" size="sm" className="w-fit">
+            <a href={videoHref} target="_blank" rel="noreferrer">
+              <PlayCircle className="h-4 w-4" />
+              {videoAction}
+            </a>
+          </Button>
+        ) : null}
+      </div>
     </article>
   );
 }

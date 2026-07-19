@@ -19,9 +19,27 @@ export type CommanderPlayer = {
 
 export type DayNight = "day" | "night" | null;
 
+export type VariantDeckCard = {
+  id: string;
+  name: string;
+  imageUrl: string;
+};
+
 export type CommanderGame = {
   startingLife: number;
   players: CommanderPlayer[];
+  archenemyMode: boolean;
+  archenemyPlayerId: string | null;
+  archenemyScheme: string;
+  archenemySchemeCount: number;
+  archenemyDeck: VariantDeckCard[];
+  archenemyDiscard: VariantDeckCard[];
+  archenemyCurrentScheme: VariantDeckCard | null;
+  planechaseMode: boolean;
+  planarDeck: VariantDeckCard[];
+  planarDiscard: VariantDeckCard[];
+  currentPlane: VariantDeckCard | null;
+  planarDieRoll: "planeswalk" | "chaos" | "blank" | null;
   dayNight: DayNight;
   activePlayerId: string | null;
   turnSeconds: number;
@@ -85,6 +103,18 @@ export function createDefaultGame(): CommanderGame {
   return hydrateCommanderDamage({
     startingLife: 40,
     players,
+    archenemyMode: false,
+    archenemyPlayerId: null,
+    archenemyScheme: "",
+    archenemySchemeCount: 0,
+    archenemyDeck: [],
+    archenemyDiscard: [],
+    archenemyCurrentScheme: null,
+    planechaseMode: false,
+    planarDeck: [],
+    planarDiscard: [],
+    currentPlane: null,
+    planarDieRoll: null,
     dayNight: null,
     activePlayerId: players[0]?.id ?? null,
     turnSeconds: 0,
@@ -102,9 +132,23 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
   const activePlayerId = game.activePlayerId && ids.includes(game.activePlayerId) ? game.activePlayerId : ids[0] ?? null;
   const randomPlayerId = game.randomPlayerId && ids.includes(game.randomPlayerId) ? game.randomPlayerId : null;
   const winnerPlayerId = game.winnerPlayerId && ids.includes(game.winnerPlayerId) ? game.winnerPlayerId : null;
+  const archenemyPlayerId = game.archenemyPlayerId && ids.includes(game.archenemyPlayerId) ? game.archenemyPlayerId : ids[0] ?? null;
+  const archenemyMode = Boolean(game.archenemyMode);
 
   return {
     ...game,
+    archenemyMode,
+    archenemyPlayerId: archenemyMode ? archenemyPlayerId : null,
+    archenemyScheme: game.archenemyScheme ?? "",
+    archenemySchemeCount: Math.max(0, game.archenemySchemeCount ?? 0),
+    archenemyDeck: hydrateDeck(game.archenemyDeck),
+    archenemyDiscard: hydrateDeck(game.archenemyDiscard),
+    archenemyCurrentScheme: hydrateDeckCard(game.archenemyCurrentScheme),
+    planechaseMode: Boolean(game.planechaseMode),
+    planarDeck: hydrateDeck(game.planarDeck),
+    planarDiscard: hydrateDeck(game.planarDiscard),
+    currentPlane: hydrateDeckCard(game.currentPlane),
+    planarDieRoll: game.planarDieRoll === "planeswalk" || game.planarDieRoll === "chaos" || game.planarDieRoll === "blank" ? game.planarDieRoll : null,
     dayNight: game.dayNight ?? null,
     activePlayerId,
     turnSeconds: game.turnSeconds ?? 0,
@@ -133,5 +177,25 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
         return acc;
       }, {})
     }))
+  };
+}
+
+function hydrateDeck(deck: VariantDeckCard[] | undefined) {
+  if (!Array.isArray(deck)) {
+    return [];
+  }
+
+  return deck.map(hydrateDeckCard).filter((card): card is VariantDeckCard => Boolean(card));
+}
+
+function hydrateDeckCard(card: VariantDeckCard | null | undefined) {
+  if (!card || typeof card.id !== "string" || typeof card.name !== "string") {
+    return null;
+  }
+
+  return {
+    id: card.id,
+    name: card.name,
+    imageUrl: typeof card.imageUrl === "string" ? card.imageUrl : ""
   };
 }
