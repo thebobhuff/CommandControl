@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { CookieNotice } from "@/components/cookie-notice";
+import { VisitTracker } from "@/components/visit-tracker";
 import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
@@ -100,6 +102,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body>
         {children}
+        <Suspense fallback={null}>
+          <VisitTracker />
+        </Suspense>
         <CookieNotice />
       </body>
     </html>

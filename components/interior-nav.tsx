@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Home, LogIn, Save, UsersRound, UserRound } from "lucide-react";
+import { BarChart3, Home, LogIn, Save, UsersRound, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { BrandIcon } from "@/components/brand-icon";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ type AuthUser = {
   email?: string;
   user_metadata?: Record<string, unknown>;
 };
+
+const ADMIN_EMAIL = "bob@thebobhuff.com";
 
 function readTextMetadata(metadata: Record<string, unknown>, key: string) {
   const value = metadata[key];
@@ -89,6 +91,14 @@ export function InteriorNav() {
               Players
             </Link>
           </Button>
+          {profile?.email.toLowerCase() === ADMIN_EMAIL ? (
+            <Button asChild size="sm" variant={pathname === "/admin" ? "secondary" : "ghost"}>
+              <Link href="/admin">
+                <BarChart3 className="h-4 w-4" />
+                Admin
+              </Link>
+            </Button>
+          ) : null}
           {profile ? (
             <Button asChild size="sm" variant={pathname === "/profile" ? "secondary" : "outline"}>
               <Link href="/profile" aria-label="Open profile">

@@ -34,6 +34,46 @@ create table if not exists public.commander_game_invites (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.site_visits (
+  id uuid primary key default gen_random_uuid(),
+  event_name text not null default 'page_view',
+  path text not null,
+  pathname text,
+  search text,
+  referrer text,
+  referrer_host text,
+  visitor_id text,
+  session_id text,
+  ip_hash text,
+  user_agent text,
+  page_title text,
+  utm_source text,
+  utm_medium text,
+  utm_campaign text,
+  utm_term text,
+  utm_content text,
+  gclid text,
+  fbclid text,
+  msclkid text,
+  screen_width integer,
+  screen_height integer,
+  viewport_width integer,
+  viewport_height integer,
+  device_pixel_ratio numeric,
+  language text,
+  timezone text,
+  platform text,
+  color_scheme text,
+  connection_effective_type text,
+  device_type text,
+  browser_name text,
+  os_name text,
+  country text,
+  region text,
+  city text,
+  created_at timestamptz not null default now()
+);
+
 create unique index if not exists commander_game_invites_game_email_key
   on public.commander_game_invites (game_id, invitee_email);
 
@@ -46,9 +86,37 @@ create index if not exists commander_game_invites_invitee_email_idx
 create index if not exists commander_game_invites_invited_user_idx
   on public.commander_game_invites (invited_user_id);
 
+create index if not exists site_visits_created_at_idx
+  on public.site_visits (created_at desc);
+
+create index if not exists site_visits_path_idx
+  on public.site_visits (path);
+
+create index if not exists site_visits_pathname_idx
+  on public.site_visits (pathname);
+
+create index if not exists site_visits_visitor_id_idx
+  on public.site_visits (visitor_id);
+
+create index if not exists site_visits_session_id_idx
+  on public.site_visits (session_id);
+
+create index if not exists site_visits_utm_source_idx
+  on public.site_visits (utm_source);
+
+create index if not exists site_visits_utm_campaign_idx
+  on public.site_visits (utm_campaign);
+
+create index if not exists site_visits_referrer_host_idx
+  on public.site_visits (referrer_host);
+
+create index if not exists site_visits_country_idx
+  on public.site_visits (country);
+
 alter table public.commander_games enable row level security;
 alter table public.commander_players enable row level security;
 alter table public.commander_game_invites enable row level security;
+alter table public.site_visits enable row level security;
 
 drop policy if exists "Users can read own commander games" on public.commander_games;
 create policy "Users can read own commander games"
@@ -133,6 +201,13 @@ create policy "Owners can delete game invites"
   on public.commander_game_invites
   for delete
   using (auth.uid() = owner_id);
+
+drop policy if exists "No direct client access to site visits" on public.site_visits;
+create policy "No direct client access to site visits"
+  on public.site_visits
+  for all
+  using (false)
+  with check (false);
 
 create or replace function public.set_updated_at()
 returns trigger

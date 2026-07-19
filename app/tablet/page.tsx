@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Crown,
+  Bot,
   Dices,
   Gem,
   Minus,
+  MessageCircle,
   Monitor,
   Moon,
   Plus,
@@ -325,6 +327,7 @@ export default function TabletPage() {
 
       <div className="flex min-h-0 flex-1 flex-col p-1">
         <VariantDeckStrip game={game} />
+        <ArchenemyMiniChat game={game} />
         <section className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1", gridClass)}>
           {game.players.map((player) => (
             <TabletPlayerPanel
@@ -346,6 +349,27 @@ export default function TabletPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ArchenemyMiniChat({ game }: { game: CommanderGame }) {
+  if (!game.archenemyMode || !game.archenemyAiEnabled || !game.archenemyAiTaunt) {
+    return null;
+  }
+
+  return (
+    <div className="mb-1 grid grid-cols-[2.5rem_1fr] items-center gap-2 rounded-md border border-white/10 bg-zinc-950/95 p-2 screen-text-shadow">
+      <div className={cn("flex h-10 w-10 items-center justify-center rounded-md ring-1", archenemyAccentClasses(game.archenemyAiAccent))}>
+        {archenemyAvatarIcon(game.archenemyAiAvatar)}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-primary">
+          <MessageCircle className="h-3 w-3" />
+          {game.archenemyAiName}
+        </div>
+        <div className="truncate text-xs font-black text-white">"{game.archenemyAiTaunt}"</div>
+      </div>
+    </div>
   );
 }
 
@@ -423,6 +447,12 @@ function TabletControlBar({
             <Button variant="secondary" size="sm" onClick={onSetSchemeInMotion} className="h-8 shrink-0 px-2 text-xs" disabled={game.archenemyDeck.length + game.archenemyDiscard.length === 0}>
               New Scheme
             </Button>
+            {game.archenemyAiEnabled && game.archenemyAiTaunt ? (
+              <span className="flex h-8 max-w-56 items-center gap-1 truncate rounded-md border border-white/10 bg-black/35 px-2 text-xs font-black">
+                <Bot className="h-3.5 w-3.5 text-primary" />
+                {game.archenemyAiTaunt}
+              </span>
+            ) : null}
           </div>
         ) : null}
         {game.planechaseMode ? (
@@ -820,4 +850,30 @@ function shuffleDeck<T>(cards: T[]) {
     [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
   }
   return shuffled;
+}
+
+function archenemyAvatarIcon(avatar: string) {
+  if (avatar === "skull") {
+    return <Skull className="h-5 w-5" />;
+  }
+  if (avatar === "dragon") {
+    return <ShieldAlert className="h-5 w-5" />;
+  }
+  if (avatar === "house") {
+    return <Bot className="h-5 w-5" />;
+  }
+  return <Crown className="h-5 w-5" />;
+}
+
+function archenemyAccentClasses(accent: CommanderGame["archenemyAiAccent"]) {
+  if (accent === "red") {
+    return "bg-destructive text-destructive-foreground ring-red-300/35";
+  }
+  if (accent === "violet") {
+    return "bg-violet-500/25 text-violet-100 ring-violet-300/35";
+  }
+  if (accent === "green") {
+    return "bg-emerald-500/20 text-emerald-100 ring-emerald-300/35";
+  }
+  return "bg-primary text-primary-foreground ring-amber-200/45";
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Crown, Dices, ExternalLink, Gem, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
+import { Bot, Crown, Dices, ExternalLink, Gem, MessageCircle, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
@@ -102,6 +102,7 @@ export default function DisplayPage() {
         timerSeconds={timerSeconds}
         displayQrUrl={displayQrUrl}
       />
+      <ArchenemyChatBubble game={game} />
       <div className={cn("grid min-h-0 flex-1 gap-1 p-1", activeVariantCards.length > 0 && "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24vw)]")}>
         <div className={cn("grid min-h-0 auto-rows-fr gap-1", gridClass)}>
           {game.players.map((player) => (
@@ -120,6 +121,28 @@ export default function DisplayPage() {
         {activeVariantCards.length > 0 ? <VariantDeckStage cards={activeVariantCards} /> : null}
       </div>
     </main>
+  );
+}
+
+function ArchenemyChatBubble({ game }: { game: CommanderGame }) {
+  if (!game.archenemyMode || !game.archenemyAiEnabled || !game.archenemyAiTaunt) {
+    return null;
+  }
+
+  return (
+    <aside className="pointer-events-none absolute left-3 top-20 z-50 hidden max-w-[min(30rem,52vw)] gap-3 rounded-lg border border-white/10 bg-zinc-950/92 p-3 text-white shadow-2xl backdrop-blur screen-text-shadow md:flex">
+      <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-md ring-1", archenemyAccentClasses(game.archenemyAiAccent))}>
+        {archenemyAvatarIcon(game.archenemyAiAvatar)}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary">
+          <MessageCircle className="h-3.5 w-3.5" />
+          {game.archenemyAiName || "The Archenemy"}
+        </div>
+        <div className="mt-1 text-sm font-black leading-5 lg:text-base">"{game.archenemyAiTaunt}"</div>
+        {game.archenemyAiPlan ? <div className="mt-1 line-clamp-2 text-xs font-semibold text-white/58">{game.archenemyAiPlan}</div> : null}
+      </div>
+    </aside>
   );
 }
 
@@ -235,6 +258,7 @@ function GameStatusBar({
         {activePlayer ? <StatusItem label="Turn" value={activePlayer.name} /> : null}
         <StatusItem label={game.timerStartedAt ? "Timer Running" : "Timer"} value={timerSeconds ? formatDuration(timerSeconds) : "0:00"} icon={<Timer className="h-4 w-4" />} />
         {game.archenemyMode && archenemy ? <StatusItem label="Archenemy" value={archenemy.name} icon={<ShieldAlert className="h-4 w-4" />} /> : null}
+        {game.archenemyMode && game.archenemyAiEnabled && game.archenemyAiTaunt ? <StatusItem label={game.archenemyAiName || "AI Archenemy"} value={game.archenemyAiTaunt} icon={<Bot className="h-4 w-4" />} /> : null}
         {game.archenemyMode ? <StatusItem label="Schemes" value={game.archenemySchemeCount.toString()} icon={<ScrollText className="h-4 w-4" />} /> : null}
         {game.archenemyMode && (game.archenemyCurrentScheme || game.archenemyScheme) ? (
           <StatusItem label="Current Scheme" value={game.archenemyCurrentScheme?.name ?? game.archenemyScheme} icon={<ScrollText className="h-4 w-4" />} />
@@ -511,4 +535,30 @@ function formatPlanarDie(result: CommanderGame["planarDieRoll"]) {
     return "Chaos";
   }
   return "Blank";
+}
+
+function archenemyAvatarIcon(avatar: string) {
+  if (avatar === "skull") {
+    return <Skull className="h-6 w-6" />;
+  }
+  if (avatar === "dragon") {
+    return <ShieldAlert className="h-6 w-6" />;
+  }
+  if (avatar === "house") {
+    return <Bot className="h-6 w-6" />;
+  }
+  return <Crown className="h-6 w-6" />;
+}
+
+function archenemyAccentClasses(accent: CommanderGame["archenemyAiAccent"]) {
+  if (accent === "red") {
+    return "bg-destructive text-destructive-foreground ring-red-300/35";
+  }
+  if (accent === "violet") {
+    return "bg-violet-500/25 text-violet-100 ring-violet-300/35";
+  }
+  if (accent === "green") {
+    return "bg-emerald-500/20 text-emerald-100 ring-emerald-300/35";
+  }
+  return "bg-primary text-primary-foreground ring-amber-200/45";
 }

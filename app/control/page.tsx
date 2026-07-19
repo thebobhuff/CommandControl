@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Crown,
   Copy,
+  Bot,
   Dices,
   Gem,
   LogIn,
@@ -33,6 +34,7 @@ import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { archenemyDeckPresets, getArchenemyDeckPreset } from "@/lib/archenemy-presets";
 import { cn } from "@/lib/utils";
 import {
   createDefaultGame,
@@ -68,6 +70,7 @@ export default function ControlPage() {
   const [setupPlayerId, setSetupPlayerId] = useState<string | null>(null);
   const [savedPlayers, setSavedPlayers] = useState<SavedPlayerProfile[]>([]);
   const [variantDeckStatus, setVariantDeckStatus] = useState("");
+  const [archenemyAiStatus, setArchenemyAiStatus] = useState("");
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
     displayToken: null,
@@ -154,7 +157,18 @@ export default function ControlPage() {
     if (!player) {
       return;
     }
-    patchPlayer(playerId, { life: player.life + amount });
+
+    const patch: Partial<CommanderPlayer> = { life: player.life + amount };
+    const aiPatch = createLifeSwingAiPatch(game, player, amount);
+    commit(
+      updateGame(game, (draft) => ({
+        ...draft,
+        ...aiPatch,
+        players: draft.players.map((candidate) =>
+          candidate.id === playerId ? { ...candidate, ...patch } : candidate
+        )
+      }))
+    );
   }
 
   function adjustPoison(playerId: string, amount: number) {
@@ -323,6 +337,34 @@ export default function ControlPage() {
     });
   }
 
+  function patchArchenemyAi(patch: Partial<Pick<CommanderGame, "archenemyAiEnabled" | "archenemyAiName" | "archenemyAiPersona" | "archenemyAiAvatar" | "archenemyAiAccent" | "archenemyDeckPresetId" | "archenemyDeckName" | "archenemyAiTaunt" | "archenemyAiPlan" | "archenemyAiLastAction">>) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      ...patch
+    });
+  }
+
+  function applyArchenemyPreset(presetId: string) {
+    const preset = getArchenemyDeckPreset(presetId);
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyAiEnabled: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemyDeckPresetId: preset.id,
+      archenemyDeckName: preset.name,
+      archenemyAiName: preset.aiName,
+      archenemyAiPersona: preset.persona,
+      archenemyAiAvatar: preset.avatar,
+      archenemyAiAccent: preset.accent,
+      archenemyAiTaunt: preset.intro,
+      archenemyAiPlan: `Load ${preset.shortName}, then let the villain set schemes in motion as the table changes.`,
+      archenemyAiLastAction: "taunt"
+    });
+  }
+
   function setArchenemyScheme(archenemyScheme: string) {
     commit({
       ...game,
@@ -342,20 +384,31 @@ export default function ControlPage() {
   }
 
   async function loadArchenemyDeck() {
+    const preset = getArchenemyDeckPreset(game.archenemyDeckPresetId);
     setVariantDeckStatus("Loading schemes from Scryfall...");
     try {
-      const cards = shuffleDeck(await fetchVariantCards("type:scheme"));
+      const cards = shuffleDeck(await fetchVariantCards(preset.query));
       commit({
         ...game,
         archenemyMode: true,
+        archenemyAiEnabled: true,
         archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+        archenemyDeckPresetId: preset.id,
+        archenemyDeckName: preset.name,
+        archenemyAiName: preset.aiName,
+        archenemyAiPersona: preset.persona,
+        archenemyAiAvatar: preset.avatar,
+        archenemyAiAccent: preset.accent,
+        archenemyAiTaunt: preset.intro,
+        archenemyAiPlan: `${preset.shortName} loaded. The villain is ready to start the pressure.`,
+        archenemyAiLastAction: "taunt",
         archenemyDeck: cards,
         archenemyDiscard: [],
         archenemyCurrentScheme: null,
         archenemyScheme: "",
         archenemySchemeCount: 0
       });
-      setVariantDeckStatus(`Loaded ${cards.length} schemes`);
+      setVariantDeckStatus(`Loaded ${cards.length} ${preset.shortName} schemes`);
     } catch {
       setVariantDeckStatus("Unable to load schemes from Scryfall");
     }
@@ -378,6 +431,77 @@ export default function ControlPage() {
       archenemyScheme: next.card.name,
       archenemySchemeCount: game.archenemySchemeCount + 1
     });
+  }
+
+  function applySchemeInMotion(nextGame: CommanderGame) {
+    const next = drawVariantCard(nextGame.archenemyDeck, nextGame.archenemyDiscard);
+    if (!next.card) {
+      return nextGame;
+    }
+
+    return {
+      ...nextGame,
+      archenemyMode: true,
+      archenemyPlayerId: nextGame.archenemyPlayerId ?? nextGame.players[0]?.id ?? null,
+      archenemyDeck: next.deck,
+      archenemyDiscard: nextGame.archenemyCurrentScheme ? [nextGame.archenemyCurrentScheme, ...next.discard] : next.discard,
+      archenemyCurrentScheme: next.card,
+      archenemyScheme: next.card.name,
+      archenemySchemeCount: nextGame.archenemySchemeCount + 1,
+      archenemyAiTaunt: nextGame.archenemyAiEnabled ? createSchemeTaunt(nextGame, next.card.name) : nextGame.archenemyAiTaunt,
+      archenemyAiPlan: nextGame.archenemyAiEnabled ? `Resolve ${next.card.name}, then keep pressure on the heroes while the table reacts.` : nextGame.archenemyAiPlan,
+      archenemyAiLastAction: nextGame.archenemyAiEnabled ? "reveal_scheme" : nextGame.archenemyAiLastAction
+    };
+  }
+
+  async function runArchenemyAiTurn() {
+    setArchenemyAiStatus("The archenemy is thinking...");
+    try {
+      const response = await fetch("/api/archenemy/director", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ game })
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        action?: CommanderGame["archenemyAiLastAction"];
+        taunt?: string;
+        plan?: string;
+        targetPlayerId?: string | null;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setArchenemyAiStatus(result.error ?? "The archenemy refused to act.");
+        return;
+      }
+
+      let nextGame: CommanderGame = {
+        ...game,
+        archenemyMode: true,
+        archenemyAiEnabled: true,
+        archenemyAiTaunt: result.taunt ?? "",
+        archenemyAiPlan: result.plan ?? "",
+        archenemyAiLastAction: result.action ?? "taunt"
+      };
+
+      if (result.action === "reveal_scheme") {
+        nextGame = applySchemeInMotion(nextGame);
+      }
+
+      if (result.targetPlayerId) {
+        nextGame = {
+          ...nextGame,
+          randomPlayerId: result.targetPlayerId
+        };
+      }
+
+      commit(nextGame);
+      setArchenemyAiStatus(result.action === "reveal_scheme" ? "AI set a scheme in motion." : "AI updated the archenemy plan.");
+    } catch {
+      setArchenemyAiStatus("Unable to reach the archenemy director.");
+    }
   }
 
   function abandonCurrentScheme() {
@@ -542,6 +666,7 @@ export default function ControlPage() {
             game={game}
             serverStatus={serverStatus}
             variantDeckStatus={variantDeckStatus}
+            archenemyAiStatus={archenemyAiStatus}
             savedGameId={savedGameId}
             displayUrl={displayUrl}
             tabletUrl={tabletUrl}
@@ -559,6 +684,9 @@ export default function ControlPage() {
             onToggleDisplayQr={() => commit({ ...game, showDisplayQr: !game.showDisplayQr })}
             onToggleArchenemyMode={toggleArchenemyMode}
             onSetArchenemyPlayer={setArchenemyPlayer}
+            onPatchArchenemyAi={patchArchenemyAi}
+            onApplyArchenemyPreset={applyArchenemyPreset}
+            onRunArchenemyAiTurn={() => void runArchenemyAiTurn()}
             onArchenemyScheme={setArchenemyScheme}
             onArchenemySchemeCount={adjustArchenemySchemeCount}
             onLoadArchenemyDeck={() => void loadArchenemyDeck()}
@@ -621,6 +749,7 @@ function ControlSidebar({
   game,
   serverStatus,
   variantDeckStatus,
+  archenemyAiStatus,
   savedGameId,
   displayUrl,
   tabletUrl,
@@ -638,6 +767,9 @@ function ControlSidebar({
   onToggleDisplayQr,
   onToggleArchenemyMode,
   onSetArchenemyPlayer,
+  onPatchArchenemyAi,
+  onApplyArchenemyPreset,
+  onRunArchenemyAiTurn,
   onArchenemyScheme,
   onArchenemySchemeCount,
   onLoadArchenemyDeck,
@@ -653,6 +785,7 @@ function ControlSidebar({
   game: CommanderGame;
   serverStatus: string;
   variantDeckStatus: string;
+  archenemyAiStatus: string;
   savedGameId: string | null;
   displayUrl: string;
   tabletUrl: string;
@@ -670,6 +803,9 @@ function ControlSidebar({
   onToggleDisplayQr: () => void;
   onToggleArchenemyMode: () => void;
   onSetArchenemyPlayer: (playerId: string) => void;
+  onPatchArchenemyAi: (patch: Partial<Pick<CommanderGame, "archenemyAiEnabled" | "archenemyAiName" | "archenemyAiPersona" | "archenemyAiAvatar" | "archenemyAiAccent" | "archenemyDeckPresetId" | "archenemyDeckName" | "archenemyAiTaunt" | "archenemyAiPlan" | "archenemyAiLastAction">>) => void;
+  onApplyArchenemyPreset: (presetId: string) => void;
+  onRunArchenemyAiTurn: () => void;
   onArchenemyScheme: (scheme: string) => void;
   onArchenemySchemeCount: (amount: number) => void;
   onLoadArchenemyDeck: () => void;
@@ -762,6 +898,23 @@ function ControlSidebar({
         {game.archenemyMode ? (
           <>
             <div className="grid gap-1">
+              <Label htmlFor="archenemy-deck-preset" className="text-xs">
+                Archenemy deck
+              </Label>
+              <select
+                id="archenemy-deck-preset"
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={game.archenemyDeckPresetId}
+                onChange={(event) => onApplyArchenemyPreset(event.target.value)}
+              >
+                {archenemyDeckPresets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1">
               <Label htmlFor="archenemy-player" className="text-xs">
                 Archenemy player
               </Label>
@@ -777,6 +930,58 @@ function ControlSidebar({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="grid gap-2 rounded-md border border-border bg-background/50 p-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={game.archenemyAiEnabled ? "secondary" : "outline"}
+                className="justify-start"
+                onClick={() => onPatchArchenemyAi({ archenemyAiEnabled: !game.archenemyAiEnabled })}
+              >
+                <Bot className="h-4 w-4" />
+                AI Archenemy
+              </Button>
+              {game.archenemyAiEnabled ? (
+                <>
+                  <div className="grid gap-1">
+                    <Label htmlFor="archenemy-ai-name" className="text-xs">
+                      AI name
+                    </Label>
+                    <Input
+                      id="archenemy-ai-name"
+                      value={game.archenemyAiName}
+                      onChange={(event) => onPatchArchenemyAi({ archenemyAiName: event.target.value })}
+                      className="h-8 px-2 text-xs"
+                      placeholder="The Archenemy"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label htmlFor="archenemy-ai-persona" className="text-xs">
+                      Persona
+                    </Label>
+                    <textarea
+                      id="archenemy-ai-persona"
+                      value={game.archenemyAiPersona}
+                      onChange={(event) => onPatchArchenemyAi({ archenemyAiPersona: event.target.value })}
+                      className="min-h-20 w-full rounded-md border border-input bg-background px-2 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="A theatrical villain who enjoys schemes and table politics."
+                    />
+                  </div>
+                  <Button type="button" size="sm" className="justify-start" onClick={onRunArchenemyAiTurn}>
+                    <Bot className="h-4 w-4" />
+                    AI Act
+                  </Button>
+                  {game.archenemyAiTaunt || game.archenemyAiPlan ? (
+                    <div className="grid gap-1 rounded-md bg-muted/40 p-2 text-[11px] leading-5">
+                      {game.archenemyAiTaunt ? <div className="font-black text-foreground">"{game.archenemyAiTaunt}"</div> : null}
+                      {game.archenemyAiPlan ? <div className="text-muted-foreground">{game.archenemyAiPlan}</div> : null}
+                      {game.archenemyAiLastAction ? <div className="font-semibold uppercase tracking-wider text-primary">{game.archenemyAiLastAction.replace("_", " ")}</div> : null}
+                    </div>
+                  ) : null}
+                  {archenemyAiStatus ? <div className="text-[11px] font-semibold text-muted-foreground">{archenemyAiStatus}</div> : null}
+                </>
+              ) : null}
             </div>
             <div className="grid gap-1">
               <Label htmlFor="archenemy-scheme" className="text-xs">
@@ -1330,4 +1535,48 @@ async function fetchVariantCards(query: string) {
   }
 
   return cards;
+}
+
+function createSchemeTaunt(game: CommanderGame, schemeName: string) {
+  const name = game.archenemyAiName || "The Archenemy";
+  const options = [
+    `${schemeName}. ${name} smiles as the room realizes it was already too late.`,
+    `Behold ${schemeName}. The heroes have reached the part where hope becomes bookkeeping.`,
+    `${schemeName} is now in motion. Try to look surprised.`
+  ];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+function createLifeSwingAiPatch(game: CommanderGame, player: CommanderPlayer, amount: number): Partial<CommanderGame> {
+  if (!game.archenemyMode || !game.archenemyAiEnabled || amount === 0) {
+    return {};
+  }
+
+  const isArchenemy = player.id === game.archenemyPlayerId;
+  if (isArchenemy && amount < 0) {
+    return {
+      archenemyAiTaunt: `${player.name} bleeds, and the room mistakes it for progress.`,
+      archenemyAiPlan: "The heroes are overextending. Answer with a scheme or force them to spend their next turn defending.",
+      archenemyAiLastAction: "recover"
+    };
+  }
+
+  if (!isArchenemy && amount < 0) {
+    return {
+      archenemyAiTaunt: `${player.name}, every point lost is proof that the ending still belongs to me.`,
+      archenemyAiPlan: `Keep pressure on ${player.name}; damaged heroes make excellent examples.`,
+      archenemyAiLastAction: "pressure_leader",
+      randomPlayerId: player.id
+    };
+  }
+
+  if (!isArchenemy && amount > 0) {
+    return {
+      archenemyAiTaunt: `${player.name} clings to life. Adorable. Temporary, but adorable.`,
+      archenemyAiPlan: "The heroes are recovering. Find the highest-life player and make them pay for inspiring the table.",
+      archenemyAiLastAction: "taunt"
+    };
+  }
+
+  return {};
 }
