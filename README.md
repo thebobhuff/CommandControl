@@ -16,6 +16,7 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 - Supabase-backed game states.
 - Supabase-backed saved player profiles.
 - Commander damage tracking per opponent.
+- Archenemy mode with archenemy assignment and scheme tracking.
 - Poison, experience, energy, and treasure counters.
 - Monarch, initiative, and city blessing statuses.
 - Day/night state.
@@ -198,6 +199,10 @@ Tracked per game:
 
 - Starting life
 - Day/night
+- Archenemy mode
+- Archenemy player
+- Current scheme
+- Schemes set in motion
 - Active player
 - Turn timer
 - Random player result

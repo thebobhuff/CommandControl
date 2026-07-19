@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Crown, Dices, ExternalLink, Gem, Moon, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
+import { Crown, Dices, ExternalLink, Gem, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
@@ -11,7 +11,8 @@ import {
   saveGame,
   subscribeToGame,
   type CommanderGame,
-  type CommanderPlayer
+  type CommanderPlayer,
+  type VariantDeckCard
 } from "@/lib/game-state";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +72,24 @@ export default function DisplayPage() {
   const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
   const winner = game.players.find((player) => player.id === game.winnerPlayerId);
   const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
+  const activeVariantCards: VariantStageCard[] = [];
+  if (game.archenemyMode && game.archenemyCurrentScheme) {
+    activeVariantCards.push({
+      label: "Scheme",
+      count: game.archenemySchemeCount,
+      card: game.archenemyCurrentScheme,
+      tone: "destructive"
+    });
+  }
+  if (game.planechaseMode && game.currentPlane) {
+    activeVariantCards.push({
+      label: "Planechase",
+      count: null,
+      card: game.currentPlane,
+      tone: "primary",
+      rotated: true
+    });
+  }
 
   return (
     <main className="fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
@@ -83,20 +102,80 @@ export default function DisplayPage() {
         timerSeconds={timerSeconds}
         displayQrUrl={displayQrUrl}
       />
-      <div className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1 p-1", gridClass)}>
-        {game.players.map((player) => (
-          <PlayerDisplay
-            key={player.id}
-            player={player}
-            players={game.players}
-            compact={game.players.length >= 4}
-            isActive={game.activePlayerId === player.id}
-            isRandom={game.randomPlayerId === player.id}
-            isWinner={game.winnerPlayerId === player.id}
-          />
-        ))}
+      <div className={cn("grid min-h-0 flex-1 gap-1 p-1", activeVariantCards.length > 0 && "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24vw)]")}>
+        <div className={cn("grid min-h-0 auto-rows-fr gap-1", gridClass)}>
+          {game.players.map((player) => (
+            <PlayerDisplay
+              key={player.id}
+              player={player}
+              players={game.players}
+              compact={game.players.length >= 4}
+              isActive={game.activePlayerId === player.id}
+              isRandom={game.randomPlayerId === player.id}
+              isWinner={game.winnerPlayerId === player.id}
+              isArchenemy={game.archenemyMode && game.archenemyPlayerId === player.id}
+            />
+          ))}
+        </div>
+        {activeVariantCards.length > 0 ? <VariantDeckStage cards={activeVariantCards} /> : null}
       </div>
     </main>
+  );
+}
+
+type VariantStageCard = {
+  label: string;
+  count: number | null;
+  card: VariantDeckCard;
+  tone: "primary" | "destructive";
+  rotated?: boolean;
+};
+
+function VariantDeckStage({ cards }: { cards: VariantStageCard[] }) {
+  return (
+    <aside className="grid min-h-0 gap-1 lg:auto-rows-fr">
+      {cards.map((item) => (
+        <section
+          key={`${item.label}-${item.card.id}`}
+          className={cn(
+            "variant-card-reveal relative isolate min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950 p-2 screen-text-shadow sm:p-3",
+            item.tone === "destructive" && "scheme-card-reveal"
+          )}
+        >
+          <div
+            className="absolute inset-0 opacity-25 blur-2xl"
+            style={{ backgroundImage: item.card.imageUrl ? `url(${item.card.imageUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }}
+          />
+          <div className="relative z-10 flex h-full min-h-0 flex-col gap-2">
+            <div className="flex shrink-0 items-center justify-between gap-2">
+              <div className={cn("flex items-center gap-2 rounded-md px-2 py-1 text-xs font-black uppercase tracking-wider", item.tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
+                {item.tone === "destructive" ? <ShieldAlert className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                {item.label}
+              </div>
+              {item.count !== null ? <div className="rounded-md bg-black/55 px-2 py-1 text-xs font-black text-white/80">#{item.count}</div> : null}
+            </div>
+            <div className={cn("relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg", item.rotated && "plane-portal-frame")}>
+              {item.tone === "destructive" ? <div className="scheme-card-omen pointer-events-none absolute inset-0 z-20" /> : null}
+              {item.card.imageUrl ? (
+                <img
+                  src={item.card.imageUrl}
+                  alt={item.card.name}
+                  className={cn(
+                    "relative z-10 max-h-full max-w-full rounded-lg object-contain shadow-[0_16px_40px_rgba(0,0,0,0.65)]",
+                    item.rotated && "rotate-90 scale-[1.38] plane-portal-card"
+                  )}
+                />
+              ) : (
+                <div className="flex aspect-[5/7] max-h-full w-full max-w-64 items-center justify-center rounded-lg border border-white/10 bg-black/55 p-4 text-center text-xl font-black">
+                  {item.card.name}
+                </div>
+              )}
+            </div>
+            <h2 className="shrink-0 text-center text-sm font-black uppercase tracking-wider text-white sm:text-base lg:text-lg">{item.card.name}</h2>
+          </div>
+        </section>
+      ))}
+    </aside>
   );
 }
 
@@ -120,6 +199,7 @@ function GameStatusBar({
   const monarch = game.players.find((player) => player.isMonarch);
   const initiative = game.players.find((player) => player.hasInitiative);
   const cityBlessed = game.players.filter((player) => player.hasCityBlessing);
+  const archenemy = game.players.find((player) => player.id === game.archenemyPlayerId);
   const cityLabel =
     cityBlessed.length === 0
       ? null
@@ -154,6 +234,13 @@ function GameStatusBar({
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         {activePlayer ? <StatusItem label="Turn" value={activePlayer.name} /> : null}
         <StatusItem label={game.timerStartedAt ? "Timer Running" : "Timer"} value={timerSeconds ? formatDuration(timerSeconds) : "0:00"} icon={<Timer className="h-4 w-4" />} />
+        {game.archenemyMode && archenemy ? <StatusItem label="Archenemy" value={archenemy.name} icon={<ShieldAlert className="h-4 w-4" />} /> : null}
+        {game.archenemyMode ? <StatusItem label="Schemes" value={game.archenemySchemeCount.toString()} icon={<ScrollText className="h-4 w-4" />} /> : null}
+        {game.archenemyMode && (game.archenemyCurrentScheme || game.archenemyScheme) ? (
+          <StatusItem label="Current Scheme" value={game.archenemyCurrentScheme?.name ?? game.archenemyScheme} icon={<ScrollText className="h-4 w-4" />} />
+        ) : null}
+        {game.planechaseMode && game.currentPlane ? <StatusItem label="Current Plane" value={game.currentPlane.name} icon={<Sparkles className="h-4 w-4" />} /> : null}
+        {game.planechaseMode && game.planarDieRoll ? <StatusItem label="Planar Die" value={formatPlanarDie(game.planarDieRoll)} icon={<Dices className="h-4 w-4" />} /> : null}
         {randomPlayer ? <StatusItem label="Pick" value={randomPlayer.name} /> : null}
         {winner ? <StatusItem label="Winner" value={winner.name} icon={<Trophy className="h-4 w-4" />} /> : null}
         {game.diceRoll ? <StatusItem label="d20" value={game.diceRoll.toString()} icon={<Dices className="h-4 w-4" />} /> : null}
@@ -205,7 +292,8 @@ function PlayerDisplay({
   compact,
   isActive,
   isRandom,
-  isWinner
+  isWinner,
+  isArchenemy
 }: {
   player: CommanderPlayer;
   players: CommanderPlayer[];
@@ -213,6 +301,7 @@ function PlayerDisplay({
   isActive: boolean;
   isRandom: boolean;
   isWinner: boolean;
+  isArchenemy: boolean;
 }) {
   const previousLife = useRef(player.life);
   const previousPoison = useRef(player.poison);
@@ -246,7 +335,8 @@ function PlayerDisplay({
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
         poisonBurst && "poison-pulse",
-        isWinner && "winner-celebration"
+        isWinner && "winner-celebration",
+        isArchenemy && "ring-2 ring-destructive"
       )}
       style={{
         backgroundImage: player.backgroundImage
@@ -308,6 +398,7 @@ function PlayerDisplay({
           </div>
           <div className="flex max-w-[45%] flex-wrap justify-end gap-1">
             {isActive ? <DisplayBadge>Turn</DisplayBadge> : null}
+            {isArchenemy ? <DisplayBadge danger>Archenemy</DisplayBadge> : null}
             {isWinner ? <DisplayBadge>Winner</DisplayBadge> : null}
             {isRandom ? <DisplayBadge>Pick</DisplayBadge> : null}
             {player.isMonarch ? <DisplayBadge>Monarch</DisplayBadge> : null}
@@ -410,4 +501,14 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+}
+
+function formatPlanarDie(result: CommanderGame["planarDieRoll"]) {
+  if (result === "planeswalk") {
+    return "Planeswalk";
+  }
+  if (result === "chaos") {
+    return "Chaos";
+  }
+  return "Blank";
 }

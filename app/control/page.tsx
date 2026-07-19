@@ -13,9 +13,12 @@ import {
   QrCode,
   RotateCcw,
   Save,
+  ScrollText,
+  ShieldAlert,
   Skull,
   Sparkles,
   Sun,
+  Shuffle,
   Tablet,
   TabletSmartphone,
   Timer,
@@ -30,6 +33,7 @@ import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   createDefaultGame,
   createId,
@@ -45,7 +49,8 @@ import {
   updateGame,
   type GameAccess,
   type CommanderGame,
-  type CommanderPlayer
+  type CommanderPlayer,
+  type VariantDeckCard
 } from "@/lib/game-state";
 
 type SavedPlayerProfile = {
@@ -62,6 +67,7 @@ export default function ControlPage() {
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
   const [setupPlayerId, setSetupPlayerId] = useState<string | null>(null);
   const [savedPlayers, setSavedPlayers] = useState<SavedPlayerProfile[]>([]);
+  const [variantDeckStatus, setVariantDeckStatus] = useState("");
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
     displayToken: null,
@@ -299,6 +305,181 @@ export default function ControlPage() {
     });
   }
 
+  function toggleArchenemyMode() {
+    commit({
+      ...game,
+      archenemyMode: !game.archenemyMode,
+      archenemyPlayerId: !game.archenemyMode ? game.archenemyPlayerId ?? game.players[0]?.id ?? null : null,
+      archenemyScheme: !game.archenemyMode ? game.archenemyScheme : "",
+      archenemySchemeCount: !game.archenemyMode ? game.archenemySchemeCount : 0
+    });
+  }
+
+  function setArchenemyPlayer(playerId: string) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: playerId
+    });
+  }
+
+  function setArchenemyScheme(archenemyScheme: string) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemyScheme
+    });
+  }
+
+  function adjustArchenemySchemeCount(amount: number) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemySchemeCount: Math.max(0, game.archenemySchemeCount + amount)
+    });
+  }
+
+  async function loadArchenemyDeck() {
+    setVariantDeckStatus("Loading schemes from Scryfall...");
+    try {
+      const cards = shuffleDeck(await fetchVariantCards("type:scheme"));
+      commit({
+        ...game,
+        archenemyMode: true,
+        archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+        archenemyDeck: cards,
+        archenemyDiscard: [],
+        archenemyCurrentScheme: null,
+        archenemyScheme: "",
+        archenemySchemeCount: 0
+      });
+      setVariantDeckStatus(`Loaded ${cards.length} schemes`);
+    } catch {
+      setVariantDeckStatus("Unable to load schemes from Scryfall");
+    }
+  }
+
+  function setSchemeInMotion() {
+    const next = drawVariantCard(game.archenemyDeck, game.archenemyDiscard);
+    if (!next.card) {
+      setVariantDeckStatus("Load a scheme deck first");
+      return;
+    }
+
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemyDeck: next.deck,
+      archenemyDiscard: game.archenemyCurrentScheme ? [game.archenemyCurrentScheme, ...next.discard] : next.discard,
+      archenemyCurrentScheme: next.card,
+      archenemyScheme: next.card.name,
+      archenemySchemeCount: game.archenemySchemeCount + 1
+    });
+  }
+
+  function abandonCurrentScheme() {
+    if (!game.archenemyCurrentScheme) {
+      return;
+    }
+
+    commit({
+      ...game,
+      archenemyCurrentScheme: null,
+      archenemyScheme: "",
+      archenemyDiscard: [game.archenemyCurrentScheme, ...game.archenemyDiscard]
+    });
+  }
+
+  function reshuffleArchenemyDeck() {
+    const cards = [
+      ...game.archenemyDeck,
+      ...game.archenemyDiscard,
+      ...(game.archenemyCurrentScheme ? [game.archenemyCurrentScheme] : [])
+    ];
+    commit({
+      ...game,
+      archenemyDeck: shuffleDeck(cards),
+      archenemyDiscard: [],
+      archenemyCurrentScheme: null,
+      archenemyScheme: ""
+    });
+  }
+
+  function togglePlanechaseMode() {
+    commit({
+      ...game,
+      planechaseMode: !game.planechaseMode,
+      planarDieRoll: null
+    });
+  }
+
+  async function loadPlanarDeck() {
+    setVariantDeckStatus("Loading planes from Scryfall...");
+    try {
+      const cards = shuffleDeck(await fetchVariantCards("(type:plane OR type:phenomenon)"));
+      commit({
+        ...game,
+        planechaseMode: true,
+        planarDeck: cards,
+        planarDiscard: [],
+        currentPlane: null,
+        planarDieRoll: null
+      });
+      setVariantDeckStatus(`Loaded ${cards.length} planar cards`);
+    } catch {
+      setVariantDeckStatus("Unable to load planar cards from Scryfall");
+    }
+  }
+
+  function planeswalk(nextDieRoll: CommanderGame["planarDieRoll"] = null) {
+    const next = drawVariantCard(game.planarDeck, game.planarDiscard);
+    if (!next.card) {
+      setVariantDeckStatus("Load a planar deck first");
+      return;
+    }
+
+    commit({
+      ...game,
+      planechaseMode: true,
+      planarDeck: next.deck,
+      planarDiscard: game.currentPlane ? [game.currentPlane, ...next.discard] : next.discard,
+      currentPlane: next.card,
+      planarDieRoll: nextDieRoll
+    });
+  }
+
+  function rollPlanarDie() {
+    const roll = Math.floor(Math.random() * 6) + 1;
+    if (roll === 1) {
+      planeswalk("planeswalk");
+      return;
+    }
+
+    commit({
+      ...game,
+      planechaseMode: true,
+      planarDieRoll: roll === 6 ? "chaos" : "blank"
+    });
+  }
+
+  function reshufflePlanarDeck() {
+    const cards = [
+      ...game.planarDeck,
+      ...game.planarDiscard,
+      ...(game.currentPlane ? [game.currentPlane] : [])
+    ];
+    commit({
+      ...game,
+      planarDeck: shuffleDeck(cards),
+      planarDiscard: [],
+      currentPlane: null,
+      planarDieRoll: null
+    });
+  }
+
   function toggleTimer() {
     if (game.timerStartedAt) {
       const elapsed = Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000));
@@ -360,6 +541,7 @@ export default function ControlPage() {
           <ControlSidebar
             game={game}
             serverStatus={serverStatus}
+            variantDeckStatus={variantDeckStatus}
             savedGameId={savedGameId}
             displayUrl={displayUrl}
             tabletUrl={tabletUrl}
@@ -375,6 +557,19 @@ export default function ControlPage() {
             onSetActivePlayer={setActivePlayer}
             onResetTimer={resetTimer}
             onToggleDisplayQr={() => commit({ ...game, showDisplayQr: !game.showDisplayQr })}
+            onToggleArchenemyMode={toggleArchenemyMode}
+            onSetArchenemyPlayer={setArchenemyPlayer}
+            onArchenemyScheme={setArchenemyScheme}
+            onArchenemySchemeCount={adjustArchenemySchemeCount}
+            onLoadArchenemyDeck={() => void loadArchenemyDeck()}
+            onSetSchemeInMotion={setSchemeInMotion}
+            onAbandonCurrentScheme={abandonCurrentScheme}
+            onReshuffleArchenemyDeck={reshuffleArchenemyDeck}
+            onTogglePlanechaseMode={togglePlanechaseMode}
+            onLoadPlanarDeck={() => void loadPlanarDeck()}
+            onPlaneswalk={() => planeswalk()}
+            onRollPlanarDie={rollPlanarDie}
+            onReshufflePlanarDeck={reshufflePlanarDeck}
           />
         </aside>
 
@@ -386,6 +581,7 @@ export default function ControlPage() {
                   player={player}
                   players={game.players}
                   savedPlayers={savedPlayers}
+                  isArchenemy={game.archenemyMode && game.archenemyPlayerId === player.id}
                   isWinner={game.winnerPlayerId === player.id}
                   setupOpen={setupPlayerId === player.id}
                   onToggleSetup={() => setSetupPlayerId((current) => (current === player.id ? null : player.id))}
@@ -424,6 +620,7 @@ export default function ControlPage() {
 function ControlSidebar({
   game,
   serverStatus,
+  variantDeckStatus,
   savedGameId,
   displayUrl,
   tabletUrl,
@@ -438,10 +635,24 @@ function ControlSidebar({
   onToggleTimer,
   onSetActivePlayer,
   onResetTimer,
-  onToggleDisplayQr
+  onToggleDisplayQr,
+  onToggleArchenemyMode,
+  onSetArchenemyPlayer,
+  onArchenemyScheme,
+  onArchenemySchemeCount,
+  onLoadArchenemyDeck,
+  onSetSchemeInMotion,
+  onAbandonCurrentScheme,
+  onReshuffleArchenemyDeck,
+  onTogglePlanechaseMode,
+  onLoadPlanarDeck,
+  onPlaneswalk,
+  onRollPlanarDie,
+  onReshufflePlanarDeck
 }: {
   game: CommanderGame;
   serverStatus: string;
+  variantDeckStatus: string;
   savedGameId: string | null;
   displayUrl: string;
   tabletUrl: string;
@@ -457,6 +668,19 @@ function ControlSidebar({
   onSetActivePlayer: (playerId: string) => void;
   onResetTimer: () => void;
   onToggleDisplayQr: () => void;
+  onToggleArchenemyMode: () => void;
+  onSetArchenemyPlayer: (playerId: string) => void;
+  onArchenemyScheme: (scheme: string) => void;
+  onArchenemySchemeCount: (amount: number) => void;
+  onLoadArchenemyDeck: () => void;
+  onSetSchemeInMotion: () => void;
+  onAbandonCurrentScheme: () => void;
+  onReshuffleArchenemyDeck: () => void;
+  onTogglePlanechaseMode: () => void;
+  onLoadPlanarDeck: () => void;
+  onPlaneswalk: () => void;
+  onRollPlanarDie: () => void;
+  onReshufflePlanarDeck: () => void;
 }) {
   const [copiedShareLink, setCopiedShareLink] = useState(false);
 
@@ -531,6 +755,110 @@ function ControlSidebar({
       </div>
 
       <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
+        <Button variant={game.archenemyMode ? "secondary" : "outline"} size="sm" onClick={onToggleArchenemyMode} className="justify-start">
+          <ShieldAlert className="h-4 w-4" />
+          Archenemy
+        </Button>
+        {game.archenemyMode ? (
+          <>
+            <div className="grid gap-1">
+              <Label htmlFor="archenemy-player" className="text-xs">
+                Archenemy player
+              </Label>
+              <select
+                id="archenemy-player"
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={game.archenemyPlayerId ?? ""}
+                onChange={(event) => onSetArchenemyPlayer(event.target.value)}
+              >
+                {game.players.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="archenemy-scheme" className="text-xs">
+                Current scheme
+              </Label>
+              <Input
+                id="archenemy-scheme"
+                value={game.archenemyScheme}
+                onChange={(event) => onArchenemyScheme(event.target.value)}
+                className="h-8 px-2 text-xs"
+                placeholder="Scheme set in motion"
+              />
+            </div>
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-background/60 p-1">
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onArchenemySchemeCount(-1)}>
+                -
+              </Button>
+              <div className="flex min-w-0 items-center justify-center gap-1 text-xs font-black">
+                <ScrollText className="h-3.5 w-3.5 text-primary" />
+                Schemes {game.archenemySchemeCount}
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onArchenemySchemeCount(1)}>
+                +
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onLoadArchenemyDeck}>
+                <Shuffle className="h-3.5 w-3.5" />
+                Load
+              </Button>
+              <Button size="sm" className="h-8 px-2 text-xs" onClick={onSetSchemeInMotion}>
+                <ScrollText className="h-3.5 w-3.5" />
+                New Scheme
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onAbandonCurrentScheme} disabled={!game.archenemyCurrentScheme}>
+                Abandon
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onReshuffleArchenemyDeck} disabled={game.archenemyDeck.length + game.archenemyDiscard.length + (game.archenemyCurrentScheme ? 1 : 0) === 0}>
+                Shuffle
+              </Button>
+            </div>
+            <VariantCardPreview card={game.archenemyCurrentScheme} emptyLabel="No scheme in motion" tone="scheme" />
+            <div className="text-[11px] font-semibold text-muted-foreground">
+              Deck {game.archenemyDeck.length} / Discard {game.archenemyDiscard.length}
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
+        <Button variant={game.planechaseMode ? "secondary" : "outline"} size="sm" onClick={onTogglePlanechaseMode} className="justify-start">
+          <Sparkles className="h-4 w-4" />
+          Planechase
+        </Button>
+        {game.planechaseMode ? (
+          <>
+            <div className="grid grid-cols-2 gap-1">
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onLoadPlanarDeck}>
+                <Shuffle className="h-3.5 w-3.5" />
+                Load
+              </Button>
+              <Button size="sm" className="h-8 px-2 text-xs" onClick={onPlaneswalk}>
+                New Plane
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onRollPlanarDie}>
+                Die {formatPlanarDie(game.planarDieRoll)}
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onReshufflePlanarDeck} disabled={game.planarDeck.length + game.planarDiscard.length + (game.currentPlane ? 1 : 0) === 0}>
+                Shuffle
+              </Button>
+            </div>
+            <VariantCardPreview card={game.currentPlane} emptyLabel="No current plane" tone="plane" rotated />
+            <div className="text-[11px] font-semibold text-muted-foreground">
+              Deck {game.planarDeck.length} / Discard {game.planarDiscard.length}
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {variantDeckStatus ? <div className="rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] font-semibold text-muted-foreground">{variantDeckStatus}</div> : null}
+
+      <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" size="sm" onClick={onCycleDayNight}>
             {game.dayNight === "night" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -593,6 +921,7 @@ function PlayerControl({
   player,
   players,
   savedPlayers,
+  isArchenemy,
   isWinner,
   setupOpen,
   onToggleSetup,
@@ -616,6 +945,7 @@ function PlayerControl({
   player: CommanderPlayer;
   players: CommanderPlayer[];
   savedPlayers: SavedPlayerProfile[];
+  isArchenemy: boolean;
   isWinner: boolean;
   setupOpen: boolean;
   onToggleSetup: () => void;
@@ -640,7 +970,7 @@ function PlayerControl({
     <div className="space-y-1.5 rounded-md bg-card p-2">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5">
         <div
-          className="h-9 w-9 shrink-0 rounded-md border border-border bg-muted bg-cover bg-center"
+          className={cn("h-9 w-9 shrink-0 rounded-md border border-border bg-muted bg-cover bg-center", isArchenemy && "ring-2 ring-destructive")}
           style={{ backgroundImage: player.backgroundImage ? `url(${player.backgroundImage})` : undefined }}
         />
         <div className="min-w-0">
@@ -810,6 +1140,12 @@ function PlayerControl({
       </div>
 
       <div className="grid grid-cols-4 gap-1">
+        {isArchenemy ? (
+          <div className="col-span-4 flex items-center justify-center gap-1 rounded-md bg-destructive px-2 py-1 text-xs font-black uppercase text-destructive-foreground">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            Archenemy
+          </div>
+        ) : null}
         <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "outline"} onClick={() => onStatus(player.id, "isMonarch")}>
           <Crown className="h-4 w-4" />
         </Button>
@@ -866,4 +1202,132 @@ function CompactCounter({
       <button type="button" onClick={onPlus} className="rounded px-1 font-black">+</button>
     </div>
   );
+}
+
+function VariantCardPreview({
+  card,
+  emptyLabel,
+  tone = "scheme",
+  rotated = false
+}: {
+  card: VariantDeckCard | null;
+  emptyLabel: string;
+  tone?: "scheme" | "plane";
+  rotated?: boolean;
+}) {
+  if (!card) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-background/50 px-2 py-3 text-center text-[11px] font-semibold text-muted-foreground">
+        {emptyLabel}
+      </div>
+    );
+  }
+
+  return (
+    <div key={card.id} className="variant-card-reveal grid gap-2 rounded-md border border-border bg-background/70 p-2">
+      <div
+        className={cn(
+          "relative mx-auto flex items-center justify-center overflow-hidden rounded border border-border bg-muted",
+          rotated ? "aspect-[7/5] h-32 max-h-[24vh] w-full max-w-52" : "aspect-[5/7] h-40 max-h-[28vh]",
+          tone === "plane" && "plane-portal-frame",
+          tone === "scheme" && "scheme-card-reveal"
+        )}
+      >
+        {tone === "scheme" ? <div className="scheme-card-omen pointer-events-none absolute inset-0" /> : null}
+        {card.imageUrl ? (
+          <img
+            src={card.imageUrl}
+            alt={card.name}
+            className={cn("relative z-10 max-h-full max-w-full object-contain", rotated && "rotate-90 scale-[1.38]", tone === "plane" && "plane-portal-card")}
+          />
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-wider text-primary">Current card</div>
+        <div className="truncate text-xs font-black">{card.name}</div>
+      </div>
+    </div>
+  );
+}
+
+function formatPlanarDie(result: CommanderGame["planarDieRoll"]) {
+  if (result === "planeswalk") {
+    return "Planeswalk";
+  }
+  if (result === "chaos") {
+    return "Chaos";
+  }
+  if (result === "blank") {
+    return "Blank";
+  }
+  return "";
+}
+
+function drawVariantCard(deck: VariantDeckCard[], discard: VariantDeckCard[]) {
+  const activeDeck = deck.length ? deck : shuffleDeck(discard);
+  if (activeDeck.length === 0) {
+    return { card: null, deck: [], discard: [] };
+  }
+
+  const [card, ...remaining] = activeDeck;
+  return {
+    card,
+    deck: remaining,
+    discard: deck.length ? discard : []
+  };
+}
+
+function shuffleDeck<T>(cards: T[]) {
+  const shuffled = [...cards];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+type ScryfallCard = {
+  id: string;
+  name: string;
+  image_uris?: {
+    normal?: string;
+    large?: string;
+  };
+  card_faces?: Array<{
+    image_uris?: {
+      normal?: string;
+      large?: string;
+    };
+  }>;
+};
+
+type ScryfallSearchResult = {
+  data?: ScryfallCard[];
+  has_more?: boolean;
+  next_page?: string;
+};
+
+async function fetchVariantCards(query: string) {
+  const cards: VariantDeckCard[] = [];
+  let nextUrl = `https://api.scryfall.com/cards/search?unique=cards&order=name&q=${encodeURIComponent(query)}`;
+
+  while (nextUrl) {
+    const response = await fetch(nextUrl);
+    if (!response.ok) {
+      throw new Error("Unable to load Scryfall cards");
+    }
+
+    const result = (await response.json()) as ScryfallSearchResult;
+    for (const card of result.data ?? []) {
+      cards.push({
+        id: card.id,
+        name: card.name,
+        imageUrl: card.image_uris?.normal ?? card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.large ?? ""
+      });
+    }
+
+    nextUrl = result.has_more && result.next_page ? result.next_page : "";
+  }
+
+  return cards;
 }

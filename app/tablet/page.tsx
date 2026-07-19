@@ -11,7 +11,9 @@ import {
   Moon,
   Plus,
   RotateCcw,
+  ScrollText,
   Settings,
+  ShieldAlert,
   Skull,
   Slash,
   Sparkles,
@@ -33,7 +35,8 @@ import {
   updateGame,
   type GameAccess,
   type CommanderGame,
-  type CommanderPlayer
+  type CommanderPlayer,
+  type VariantDeckCard
 } from "@/lib/game-state";
 import { cn } from "@/lib/utils";
 
@@ -178,6 +181,57 @@ export default function TabletPage() {
     commit({ ...game, diceRoll: Math.floor(Math.random() * 20) + 1 });
   }
 
+  function setArchenemyPlayer(playerId: string) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: playerId
+    });
+  }
+
+  function adjustArchenemySchemeCount(amount: number) {
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemySchemeCount: Math.max(0, game.archenemySchemeCount + amount)
+    });
+  }
+
+  function setSchemeInMotion() {
+    const next = drawVariantCard(game.archenemyDeck, game.archenemyDiscard);
+    if (!next.card) {
+      return;
+    }
+
+    commit({
+      ...game,
+      archenemyMode: true,
+      archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+      archenemyDeck: next.deck,
+      archenemyDiscard: game.archenemyCurrentScheme ? [game.archenemyCurrentScheme, ...next.discard] : next.discard,
+      archenemyCurrentScheme: next.card,
+      archenemyScheme: next.card.name,
+      archenemySchemeCount: game.archenemySchemeCount + 1
+    });
+  }
+
+  function planeswalk(nextDieRoll: CommanderGame["planarDieRoll"] = null) {
+    const next = drawVariantCard(game.planarDeck, game.planarDiscard);
+    if (!next.card) {
+      return;
+    }
+
+    commit({
+      ...game,
+      planechaseMode: true,
+      planarDeck: next.deck,
+      planarDiscard: game.currentPlane ? [game.currentPlane, ...next.discard] : next.discard,
+      currentPlane: next.card,
+      planarDieRoll: nextDieRoll
+    });
+  }
+
   function toggleTimer() {
     if (game.timerStartedAt) {
       const elapsed = Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000));
@@ -237,7 +291,7 @@ export default function TabletPage() {
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
           <span className="truncate text-xs font-black uppercase tracking-wider sm:text-sm">
-            {game.dayNight ? game.dayNight : "Tablet"} {game.diceRoll ? ` d20:${game.diceRoll}` : ""} {timerSeconds ? ` ${formatDuration(timerSeconds)}` : ""}
+            {game.archenemyMode ? "Archenemy" : game.dayNight ? game.dayNight : "Tablet"} {game.diceRoll ? ` d20:${game.diceRoll}` : ""} {timerSeconds ? ` ${formatDuration(timerSeconds)}` : ""}
           </span>
         </div>
         <div className="flex shrink-0 gap-1 sm:gap-2">
@@ -263,10 +317,15 @@ export default function TabletPage() {
         onRollD20={rollD20}
         onToggleTimer={toggleTimer}
         onSetActivePlayer={setActivePlayer}
+        onSetArchenemyPlayer={setArchenemyPlayer}
+        onArchenemySchemeCount={adjustArchenemySchemeCount}
+        onSetSchemeInMotion={setSchemeInMotion}
+        onPlaneswalk={() => planeswalk()}
       />
 
-      <div className="min-h-0 flex-1 p-1">
-        <section className={cn("grid h-full min-h-0 auto-rows-fr gap-1", gridClass)}>
+      <div className="flex min-h-0 flex-1 flex-col p-1">
+        <VariantDeckStrip game={game} />
+        <section className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1", gridClass)}>
           {game.players.map((player) => (
             <TabletPlayerPanel
               key={player.id}
@@ -274,6 +333,7 @@ export default function TabletPage() {
               players={game.players}
               isActive={game.activePlayerId === player.id}
               isRandom={game.randomPlayerId === player.id}
+              isArchenemy={game.archenemyMode && game.archenemyPlayerId === player.id}
               onName={(name) => patchPlayer(player.id, { name })}
               onCommanderName={(commanderName) => patchPlayer(player.id, { commanderName })}
               onLife={adjustLife}
@@ -297,7 +357,11 @@ function TabletControlBar({
   onChooseRandomPlayer,
   onRollD20,
   onToggleTimer,
-  onSetActivePlayer
+  onSetActivePlayer,
+  onSetArchenemyPlayer,
+  onArchenemySchemeCount,
+  onSetSchemeInMotion,
+  onPlaneswalk
 }: {
   game: CommanderGame;
   timerSeconds: number;
@@ -307,6 +371,10 @@ function TabletControlBar({
   onRollD20: () => void;
   onToggleTimer: () => void;
   onSetActivePlayer: (playerId: string) => void;
+  onSetArchenemyPlayer: (playerId: string) => void;
+  onArchenemySchemeCount: (amount: number) => void;
+  onSetSchemeInMotion: () => void;
+  onPlaneswalk: () => void;
 }) {
   return (
     <div className="shrink-0 border-b border-white/10 bg-black/75 px-1.5 py-1.5 backdrop-blur">
@@ -331,6 +399,53 @@ function TabletControlBar({
           <Dices className="h-4 w-4" />
           d20 {game.diceRoll ? game.diceRoll : ""}
         </Button>
+        {game.archenemyMode ? (
+          <div className="flex shrink-0 items-center gap-1 border-l border-white/10 pl-1">
+            <span className="flex h-8 items-center gap-1 rounded-md bg-destructive px-2 text-xs font-black uppercase text-destructive-foreground">
+              <ShieldAlert className="h-4 w-4" />
+              {shortName(game.players.find((player) => player.id === game.archenemyPlayerId)?.name ?? "Archenemy")}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => onArchenemySchemeCount(-1)} className="h-8 shrink-0 px-2 text-xs">
+              -
+            </Button>
+            <span className="flex h-8 items-center gap-1 rounded-md border border-white/10 bg-black/35 px-2 text-xs font-black">
+              <ScrollText className="h-3.5 w-3.5 text-primary" />
+              {game.archenemySchemeCount}
+            </span>
+            {game.archenemyScheme ? (
+              <span className="flex h-8 max-w-40 items-center gap-1 truncate rounded-md border border-white/10 bg-black/35 px-2 text-xs font-black">
+                {game.archenemyCurrentScheme?.name ?? game.archenemyScheme}
+              </span>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={() => onArchenemySchemeCount(1)} className="h-8 shrink-0 px-2 text-xs">
+              +
+            </Button>
+            <Button variant="secondary" size="sm" onClick={onSetSchemeInMotion} className="h-8 shrink-0 px-2 text-xs" disabled={game.archenemyDeck.length + game.archenemyDiscard.length === 0}>
+              New Scheme
+            </Button>
+          </div>
+        ) : null}
+        {game.planechaseMode ? (
+          <div className="flex shrink-0 items-center gap-1 border-l border-white/10 pl-1">
+            <span className="flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-black uppercase text-primary-foreground">
+              <Sparkles className="h-4 w-4" />
+              Planechase
+            </span>
+            {game.currentPlane ? (
+              <span className="flex h-8 max-w-40 items-center gap-1 truncate rounded-md border border-white/10 bg-black/35 px-2 text-xs font-black">
+                {game.currentPlane.name}
+              </span>
+            ) : null}
+            {game.planarDieRoll ? (
+              <span className="flex h-8 items-center rounded-md border border-white/10 bg-black/35 px-2 text-xs font-black">
+                {formatPlanarDie(game.planarDieRoll)}
+              </span>
+            ) : null}
+            <Button variant="secondary" size="sm" onClick={onPlaneswalk} className="h-8 shrink-0 px-2 text-xs" disabled={game.planarDeck.length + game.planarDiscard.length === 0}>
+              New Plane
+            </Button>
+          </div>
+        ) : null}
         <div className="flex shrink-0 gap-1 border-l border-white/10 pl-1">
           {game.players.map((player) => (
             <Button
@@ -339,12 +454,60 @@ function TabletControlBar({
               size="sm"
               className="h-8 min-w-11 px-2 text-xs"
               onClick={() => onSetActivePlayer(player.id)}
+              onDoubleClick={() => game.archenemyMode && onSetArchenemyPlayer(player.id)}
             >
               {shortName(player.name)}
             </Button>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function VariantDeckStrip({ game }: { game: CommanderGame }) {
+  const cards: Array<{ label: string; card: VariantDeckCard; tone: "primary" | "destructive"; rotated?: boolean }> = [];
+  if (game.archenemyMode && game.archenemyCurrentScheme) {
+    cards.push({ label: "Scheme", card: game.archenemyCurrentScheme, tone: "destructive" });
+  }
+  if (game.planechaseMode && game.currentPlane) {
+    cards.push({ label: "Plane", card: game.currentPlane, tone: "primary", rotated: true });
+  }
+
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-1 grid max-h-[24vh] shrink-0 grid-cols-1 gap-1 overflow-hidden sm:grid-cols-2">
+      {cards.map((item) => (
+        <div
+          key={`${item.label}-${item.card.id}`}
+          className={cn(
+            "variant-card-reveal grid min-h-0 grid-cols-[4.5rem_1fr] items-center gap-2 rounded-md border border-white/10 bg-zinc-950/95 p-1.5 screen-text-shadow",
+            item.tone === "destructive" && "scheme-card-reveal"
+          )}
+        >
+          {item.card.imageUrl ? (
+            <div className={cn("relative flex h-24 max-h-[22vh] w-full items-center justify-center overflow-hidden rounded", item.rotated && "plane-portal-frame")}>
+              {item.tone === "destructive" ? <div className="scheme-card-omen pointer-events-none absolute inset-0" /> : null}
+              <img
+                src={item.card.imageUrl}
+                alt={item.card.name}
+                className={cn("relative z-10 max-h-full max-w-full object-contain", item.rotated && "rotate-90 scale-[1.38] plane-portal-card")}
+              />
+            </div>
+          ) : (
+            <div className="flex h-24 items-center justify-center rounded bg-black/45 text-xs font-black">{item.label}</div>
+          )}
+          <div className="min-w-0">
+            <div className={cn("mb-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase", item.tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
+              {item.label}
+            </div>
+            <div className="truncate text-sm font-black text-white">{item.card.name}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -366,6 +529,7 @@ function TabletPlayerPanel({
   players,
   isActive,
   isRandom,
+  isArchenemy,
   onName,
   onCommanderName,
   onLife,
@@ -378,6 +542,7 @@ function TabletPlayerPanel({
   players: CommanderPlayer[];
   isActive: boolean;
   isRandom: boolean;
+  isArchenemy: boolean;
   onName: (name: string) => void;
   onCommanderName: (commanderName: string) => void;
   onLife: (playerId: string, amount: number) => void;
@@ -416,7 +581,8 @@ function TabletPlayerPanel({
         "relative isolate flex min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950",
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
-        poisonBurst && "poison-pulse"
+        poisonBurst && "poison-pulse",
+        isArchenemy && "ring-2 ring-destructive"
       )}
       style={{
         backgroundImage: player.backgroundImage
@@ -480,6 +646,7 @@ function TabletPlayerPanel({
           </div>
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {isActive ? <Badge>Turn</Badge> : null}
+            {isArchenemy ? <Badge danger>Archenemy</Badge> : null}
             {isRandom ? <Badge>Pick</Badge> : null}
             {player.isMonarch ? <Badge>Monarch</Badge> : null}
             {player.hasInitiative ? <Badge>Init</Badge> : null}
@@ -620,4 +787,37 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+}
+
+function formatPlanarDie(result: CommanderGame["planarDieRoll"]) {
+  if (result === "planeswalk") {
+    return "Planeswalk";
+  }
+  if (result === "chaos") {
+    return "Chaos";
+  }
+  return "Blank";
+}
+
+function drawVariantCard(deck: VariantDeckCard[], discard: VariantDeckCard[]) {
+  const activeDeck = deck.length ? deck : shuffleDeck(discard);
+  if (activeDeck.length === 0) {
+    return { card: null, deck: [], discard: [] };
+  }
+
+  const [card, ...remaining] = activeDeck;
+  return {
+    card,
+    deck: remaining,
+    discard: deck.length ? discard : []
+  };
+}
+
+function shuffleDeck<T>(cards: T[]) {
+  const shuffled = [...cards];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
 }

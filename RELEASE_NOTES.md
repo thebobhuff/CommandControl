@@ -1,20 +1,17 @@
-# Commander Control v0.1.0
+# Commander Control v0.3.0
 
-Initial release of Commander Control.
+Variant-deck release for Commander Control.
 
 ## Highlights
 
-- Tablet-first Commander life tracker and control surface.
-- TV display mode for large table-visible life totals.
-- Tablet-only play mode with tap-to-adjust life controls.
-- Supabase magic-link login.
-- Supabase-backed saved game states and saved player profiles.
-- Scryfall card-art search for player and game backgrounds.
-- Commander damage, poison, experience, energy, and treasure tracking.
-- Monarch, initiative, city blessing, day/night, active player, turn timer, random player picker, and d20 roller.
-- Life gain, life loss, and poison animations.
-- Fire TV Silk compatible ID generation fallback.
-- Supabase migration for `commander_games` and `commander_players` with RLS policies.
+- Added Archenemy mode with archenemy assignment.
+- Added a Scryfall-backed scheme deck that can load, shuffle, reveal a new scheme, abandon the current scheme, and reshuffle zones.
+- Added Planechase mode with a Scryfall-backed planar deck for planes and phenomena.
+- Added planar die results and automatic planeswalk on planeswalker rolls.
+- Shows active schemes and planes as full card art on the TV display, tablet mode, and control surface.
+- Rotates Planechase cards 90 degrees for easier landscape display.
+- Adds reveal animations for new schemes and a swirling portal border for Planechase cards.
+- Adds homepage video links for learning Commander, Planechase, and Archenemy.
 
 ## Validation
 
