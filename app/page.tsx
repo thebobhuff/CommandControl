@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenCheck, Mail, Monitor, PlayCircle, Tablet, TabletSmartphone } from "lucide-react";
+import { BookOpenCheck, Mail, Monitor, PlayCircle, Search, Tablet, TabletSmartphone } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { ActiveGamesList } from "@/components/active-games-list";
 import { HomeNav } from "@/components/home-nav";
@@ -88,6 +88,18 @@ export default function Home() {
         <div className="pb-8">
           <ActiveGamesList />
         </div>
+        <section className="grid gap-4 rounded-lg border border-border bg-card/75 p-4 backdrop-blur">
+          <div className="flex items-center gap-3 text-primary">
+            <Search className="h-6 w-6" />
+            <h2 className="text-2xl font-black text-foreground md:text-3xl">Explore Commander tools</h2>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <DeepLinkCard href="/mtg-commander-life-tracker" title="MTG Commander Life Tracker" body="Tablet controls, TV display, player profiles, Scryfall art, and synced Commander table state." />
+            <DeepLinkCard href="/commander-damage-tracker" title="Commander Damage Tracker" body="Track per-opponent Commander damage alongside life totals, poison, counters, and lethal threats." />
+            <DeepLinkCard href="/planechase" title="Planechase Deck Runner" body="Load a planar deck, reveal planes, roll the planar die, and show rotated plane cards on-screen." />
+            <DeepLinkCard href="/archenemy" title="Archenemy Scheme Deck" body="Assign the archenemy, load schemes, set schemes in motion, and display active schemes as card art." />
+          </div>
+        </section>
         <section id="how-to" className="grid gap-4 pb-10">
           <div className="flex items-center gap-3 text-primary">
             <BookOpenCheck className="h-6 w-6" />
@@ -159,6 +171,15 @@ export default function Home() {
         </section>
       </section>
     </main>
+  );
+}
+
+function DeepLinkCard({ href, title, body }: { href: string; title: string; body: string }) {
+  return (
+    <Link href={href} className="rounded-lg border border-border bg-background/70 p-4 transition hover:border-primary hover:bg-background">
+      <h3 className="text-base font-black">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+    </Link>
   );
 }
 

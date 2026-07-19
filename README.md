@@ -76,6 +76,9 @@ RESEND_FROM_EMAIL="Commander Control <no-reply@your-domain.com>"
 BREVO_API_KEY=your-brevo-api-key
 BREVO_FROM_EMAIL=no-reply@your-domain.com
 BREVO_FROM_NAME="Commander Control"
+
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_MODEL=openrouter/auto
 ```
 
 Run the dev server:
@@ -194,6 +197,10 @@ Scryfall is used in:
 ## Game State
 
 Current game state is stored as JSON so new Commander counters can be added without a large schema migration. The app hydrates old game states with defaults.
+
+## AI Archenemy
+
+The AI Archenemy Director uses OpenRouter when `OPENROUTER_API_KEY` is configured. Set `OPENROUTER_MODEL` to any OpenRouter model slug, or leave it as `openrouter/auto` for automatic routing. If no OpenRouter key is configured, Commander Control falls back to a local board-aware director so Archenemy mode still works during local testing.
 
 Tracked per game:
 

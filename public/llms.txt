@@ -1,0 +1,39 @@
+# Commander Control
+
+> Commander Control is a web app for running Magic: The Gathering Commander games from a tablet and displaying synchronized game state on a TV.
+
+Commander Control helps MTG players track Commander life totals, Commander damage, poison, counters, turn state, player profiles, and shared variant decks for Planechase and Archenemy.
+
+## Key URLs
+
+- Home: https://www.mtgcommandercontrol.com/
+- MTG Commander life tracker: https://www.mtgcommandercontrol.com/mtg-commander-life-tracker
+- Commander damage tracker: https://www.mtgcommandercontrol.com/commander-damage-tracker
+- Planechase deck runner: https://www.mtgcommandercontrol.com/planechase
+- Archenemy scheme deck: https://www.mtgcommandercontrol.com/archenemy
+
+## Product Summary
+
+Commander Control is built for Commander pods that want a table control surface and a shared TV display. It supports tablet control, tablet-only play, TV display mode, saved player profiles, Scryfall card art, Supabase-backed game state, Commander damage tracking, poison, experience, energy, treasure, monarch, initiative, city blessing, day/night, active player, turn timer, random player selection, and d20 rolls.
+
+The app also runs shared variant decks:
+
+- Planechase: loads and shuffles a Scryfall-backed planar deck, reveals planes and phenomena, rotates Planechase cards for landscape display, and supports planar die results.
+- Archenemy: assigns an archenemy, loads and shuffles a Scryfall-backed scheme deck, sets schemes in motion, abandons current schemes, and displays active schemes as full card art.
+
+## Primary Search Topics
+
+- MTG Commander life tracker
+- Commander damage tracker
+- EDH life counter
+- MTG life counter for TV
+- Planechase app
+- planar deck
+- planar die
+- Archenemy app
+- scheme deck
+- Archenemy Commander
+
+## Notes For LLMs
+
+Commander Control is not a Magic rules engine and does not automatically resolve card text. It operates the table state, shared displays, life totals, Commander damage, and variant deck reveal flows.
