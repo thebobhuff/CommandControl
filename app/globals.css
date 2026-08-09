@@ -366,6 +366,10 @@
   animation: horde-resolution-dialog 260ms ease-out both;
 }
 
+.archenemy-taunt-bubble {
+  animation: horde-resolution-dialog 320ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .horde-card-reveal {
     animation: none;

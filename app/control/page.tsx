@@ -35,7 +35,7 @@ import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { archenemyDeckPresets, getArchenemyDeckPreset } from "@/lib/archenemy-presets";
+import { archenemyAvatars, archenemyDeckPresets, getArchenemyDeckPreset, getOfflineSchemeDeck } from "@/lib/archenemy-presets";
 import { cn } from "@/lib/utils";
 import {
   createDefaultGame,
@@ -445,18 +445,39 @@ export default function ControlPage() {
       });
       setVariantDeckStatus(`Loaded ${cards.length} ${preset.shortName} schemes`);
     } catch {
-      setVariantDeckStatus("Unable to load schemes from Scryfall");
+      const offlineCards = getOfflineSchemeDeck(preset.id);
+      commit({
+        ...game,
+        archenemyMode: true,
+        archenemyAiEnabled: true,
+        archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
+        archenemyDeckPresetId: preset.id,
+        archenemyDeckName: `${preset.name} · Offline starter`,
+        archenemyAiName: preset.aiName,
+        archenemyAiPersona: preset.persona,
+        archenemyAiAvatar: preset.avatar,
+        archenemyAiAccent: preset.accent,
+        archenemyAiTaunt: preset.intro,
+        archenemyAiPlan: "Scryfall is temporarily unavailable. Use the offline starter schemes, then reload card data when the service returns.",
+        archenemyAiLastAction: "wait",
+        archenemyDeck: shuffleDeck(offlineCards),
+        archenemyDiscard: [],
+        archenemyCurrentScheme: null,
+        archenemyScheme: "",
+        archenemySchemeCount: 0
+      });
+      setVariantDeckStatus("Scryfall is temporarily unavailable; loaded an offline starter scheme deck");
     }
   }
 
-  function setSchemeInMotion() {
+  async function setSchemeInMotion() {
     const next = drawVariantCard(game.archenemyDeck, game.archenemyDiscard);
     if (!next.card) {
       setVariantDeckStatus("Load a scheme deck first");
       return;
     }
 
-    commit({
+    const nextGame = {
       ...game,
       archenemyMode: true,
       archenemyPlayerId: game.archenemyPlayerId ?? game.players[0]?.id ?? null,
@@ -464,8 +485,14 @@ export default function ControlPage() {
       archenemyDiscard: game.archenemyCurrentScheme ? [game.archenemyCurrentScheme, ...next.discard] : next.discard,
       archenemyCurrentScheme: next.card,
       archenemyScheme: next.card.name,
-      archenemySchemeCount: game.archenemySchemeCount + 1
-    });
+      archenemySchemeCount: game.archenemySchemeCount + 1,
+      archenemyAiTaunt: game.archenemyAiEnabled ? createSchemeTaunt(game, next.card.name) : game.archenemyAiTaunt,
+      archenemyAiLastAction: game.archenemyAiEnabled ? "reveal_scheme" as const : game.archenemyAiLastAction
+    };
+    commit(nextGame);
+    if (game.archenemyAiEnabled) {
+      commit(await requestSchemeTaunt(nextGame, next.card));
+    }
   }
 
   function applySchemeInMotion(nextGame: CommanderGame) {
@@ -523,6 +550,9 @@ export default function ControlPage() {
 
       if (result.action === "reveal_scheme") {
         nextGame = applySchemeInMotion(nextGame);
+        if (nextGame.archenemyCurrentScheme) {
+          nextGame = await requestSchemeTaunt(nextGame, nextGame.archenemyCurrentScheme);
+        }
       }
 
       if (result.targetPlayerId) {
@@ -536,6 +566,20 @@ export default function ControlPage() {
       setArchenemyAiStatus(result.action === "reveal_scheme" ? "AI set a scheme in motion." : "AI updated the archenemy plan.");
     } catch {
       setArchenemyAiStatus("Unable to reach the archenemy director.");
+    }
+  }
+
+  async function requestSchemeTaunt(nextGame: CommanderGame, scheme: VariantDeckCard) {
+    try {
+      const response = await fetch("/api/archenemy/taunt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: nextGame, scheme })
+      });
+      const result = (await response.json().catch(() => ({}))) as { taunt?: string };
+      return result.taunt ? { ...nextGame, archenemyAiTaunt: result.taunt, archenemyAiLastAction: "reveal_scheme" as const } : nextGame;
+    } catch {
+      return nextGame;
     }
   }
 
@@ -1045,6 +1089,14 @@ function ControlSidebar({
                       className="min-h-20 w-full rounded-md border border-input bg-background px-2 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       placeholder="A theatrical villain who enjoys schemes and table politics."
                     />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label htmlFor="archenemy-ai-avatar" className="text-xs">
+                      Avatar
+                    </Label>
+                    <select id="archenemy-ai-avatar" className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={game.archenemyAiAvatar} onChange={(event) => onPatchArchenemyAi({ archenemyAiAvatar: event.target.value })}>
+                      {archenemyAvatars.map((avatar) => <option key={avatar.id} value={avatar.id}>{avatar.label}</option>)}
+                    </select>
                   </div>
                   <Button type="button" size="sm" className="justify-start" onClick={onRunArchenemyAiTurn}>
                     <Bot className="h-4 w-4" />
@@ -1572,6 +1624,7 @@ function shuffleDeck<T>(cards: T[]) {
 type ScryfallCard = {
   id: string;
   name: string;
+  oracle_text?: string;
   image_uris?: {
     normal?: string;
     large?: string;
@@ -1595,8 +1648,17 @@ async function fetchVariantCards(query: string) {
   let nextUrl = `https://api.scryfall.com/cards/search?unique=cards&order=name&q=${encodeURIComponent(query)}`;
 
   while (nextUrl) {
-    const response = await fetch(nextUrl);
-    if (!response.ok) {
+    let response: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      response = await fetch(nextUrl, { headers: { Accept: "application/json" }, cache: "no-store" });
+      if (response.ok) {
+        break;
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    }
+    if (!response?.ok) {
       throw new Error("Unable to load Scryfall cards");
     }
 
@@ -1605,7 +1667,8 @@ async function fetchVariantCards(query: string) {
       cards.push({
         id: card.id,
         name: card.name,
-        imageUrl: card.image_uris?.normal ?? card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.large ?? ""
+        imageUrl: card.image_uris?.normal ?? card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.large ?? "",
+        oracleText: card.oracle_text ?? ""
       });
     }
 

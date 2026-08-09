@@ -10,6 +10,17 @@ export type ArchenemyDeckPreset = {
   intro: string;
 };
 
+export const archenemyAvatars = [
+  { id: "crown", label: "Crown" },
+  { id: "dragon", label: "Elder Dragon" },
+  { id: "house", label: "Haunted House" },
+  { id: "skull", label: "Skull" },
+  { id: "eye", label: "Watching Eye" },
+  { id: "flame", label: "Living Flame" },
+  { id: "sword", label: "War Engine" },
+  { id: "machine", label: "Doom Machine" }
+];
+
 export const archenemyDeckPresets: ArchenemyDeckPreset[] = [
   {
     id: "all-schemes",
@@ -63,4 +74,27 @@ export const archenemyDeckPresets: ArchenemyDeckPreset[] = [
 
 export function getArchenemyDeckPreset(id: string | null | undefined) {
   return archenemyDeckPresets.find((preset) => preset.id === id) ?? archenemyDeckPresets[0];
+}
+
+export function getOfflineSchemeDeck(presetId: string | null | undefined) {
+  const names = [
+    "All Shall Suffer",
+    "Behold the Power of Destruction",
+    "Every Hope Shall Vanish",
+    "I Bask in Your Silent Awe",
+    "My Undead Horde Awakens",
+    "The Dead Shall Serve",
+    "The Very Soil Shall Shake",
+    "When Will You Learn?",
+    "Your Fate Is Thrice Sealed",
+    "Your Puny Minds Cannot Fathom"
+  ];
+  return names.map((name, index) => ({
+    id: `offline-scheme-${presetId ?? "all"}-${index}`,
+    name,
+    imageUrl: "",
+    typeLine: "Scheme",
+    oracleText: "Offline scheme card. Reconnect to Scryfall to load the card image and exact rules text.",
+    isToken: false
+  }));
 }

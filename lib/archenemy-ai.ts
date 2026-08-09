@@ -7,6 +7,47 @@ export type ArchenemyAiDecision = {
   targetPlayerId: string | null;
 };
 
+export async function generateSchemeTaunt(game: CommanderGame, scheme: { name: string; oracleText?: string }) {
+  const fallback = `${scheme.name} is in motion. Read it carefully, heroes; I want you to understand exactly how you lose.`;
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return fallback;
+  }
+
+  try {
+    const response = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": APP_URL,
+        "X-OpenRouter-Title": "Commander Control",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a theatrical Magic: The Gathering Archenemy. Write one sharp, intimidating table taunt about the newly revealed scheme. Do not explain rules. Keep it under 180 characters, avoid profanity, and return only the taunt text."
+          },
+          {
+            role: "user",
+            content: JSON.stringify({ aiName: game.archenemyAiName, persona: game.archenemyAiPersona, schemeName: scheme.name, schemeText: scheme.oracleText ?? "" })
+          }
+        ]
+      })
+    });
+    if (!response.ok) {
+      return fallback;
+    }
+    const result = (await response.json()) as ChatCompletionResponse;
+    const taunt = result.choices?.[0]?.message?.content?.trim().replace(/^['"]|['"]$/g, "").slice(0, 180);
+    return taunt || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
