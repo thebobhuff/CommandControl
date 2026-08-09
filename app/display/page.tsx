@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Crown, Dices, ExternalLink, Gem, MessageCircle, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, TabletSmartphone, Timer, Trophy } from "lucide-react";
+import { Bot, Cpu, Crown, Dices, ExternalLink, Eye, Flame, Gem, Ghost, MessageCircle, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, Swords, TabletSmartphone, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchServerGame,
@@ -72,6 +72,14 @@ export default function DisplayPage() {
     return <HordeDisplay game={game} connected={connected} />;
   }
 
+  if (game.mode === "planechase") {
+    return <PlanechaseDisplay game={game} connected={connected} displayQrUrl={displayQrUrl} />;
+  }
+
+  if (game.mode === "archenemy") {
+    return <ArchenemyDisplay game={game} connected={connected} displayQrUrl={displayQrUrl} />;
+  }
+
   const activePlayer = game.players.find((player) => player.id === game.activePlayerId);
   const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
   const winner = game.players.find((player) => player.id === game.winnerPlayerId);
@@ -128,6 +136,35 @@ export default function DisplayPage() {
   );
 }
 
+function PlanechaseDisplay({ game, connected, displayQrUrl }: { game: CommanderGame; connected: boolean; displayQrUrl: string }) {
+  const activePlayer = game.players.find((player) => player.id === game.activePlayerId);
+  const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
+  const winner = game.players.find((player) => player.id === game.winnerPlayerId);
+  const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
+  const playerGrid = game.players.length <= 2 ? "grid-cols-1 md:grid-cols-2" : game.players.length === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2";
+  return <main className="fixed-screen flex flex-col overflow-hidden bg-zinc-950 text-white"><GameStatusBar game={game} connected={connected} activePlayer={activePlayer} randomPlayer={randomPlayer} winner={winner} timerSeconds={timerSeconds} displayQrUrl={displayQrUrl} /><div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,31vw)]"><section className={cn("grid min-h-0 auto-rows-fr gap-2", playerGrid)}>{game.players.map((player) => <PlayerDisplay key={player.id} player={player} players={game.players} compact={game.players.length >= 4} isActive={game.activePlayerId === player.id} isRandom={game.randomPlayerId === player.id} isWinner={game.winnerPlayerId === player.id} isArchenemy={false} />)}</section><PlanechaseStage game={game} /></div></main>;
+}
+
+function PlanechaseStage({ game }: { game: CommanderGame }) {
+  const dieLabel = game.planarDieRoll ? formatPlanarDie(game.planarDieRoll) : "Not rolled";
+  return <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2 rounded-lg border border-violet-300/25 bg-violet-950/20 p-3"><div className="grid grid-cols-3 gap-2"><DisplayStat label="Planar deck" value={game.planarDeck.length} tone="text-violet-200" /><DisplayStat label="Planar discard" value={game.planarDiscard.length} /><div className="rounded-lg border border-violet-300/30 bg-black/35 p-2"><div className="text-[10px] font-black uppercase tracking-wider text-white/50">Planar die</div><div className={cn("text-2xl font-black uppercase", game.planarDieRoll === "chaos" ? "text-red-300" : game.planarDieRoll === "planeswalk" ? "text-emerald-300" : "text-white")}>{dieLabel}</div></div></div><section className="min-h-0 overflow-auto rounded-lg border border-violet-300/25 bg-black/35 p-3"><div className="mb-2 flex items-center justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">Current plane</div><h2 className="text-xl font-black uppercase">{game.currentPlane?.name ?? "No plane revealed"}</h2></div><span className="rounded-full bg-violet-400/20 px-2 py-1 text-[10px] font-black uppercase text-violet-100">{game.currentPlane ? "In motion" : "Deck ready"}</span></div>{game.currentPlane ? <div className="grid gap-3"><div className="flex min-h-0 items-center justify-center overflow-hidden rounded-lg bg-black/45 p-3"><img src={game.currentPlane.imageUrl} alt={game.currentPlane.name} className="max-h-[52vh] max-w-full rounded object-contain shadow-[0_18px_55px_rgba(0,0,0,0.65)]" /></div>{game.currentPlane.oracleText ? <DisplayOracleText text={game.currentPlane.oracleText} /> : <p className="text-center text-xs font-semibold text-white/45">Read the active plane card above. Roll the planar die to trigger its next event.</p>}</div> : <div className="grid h-full min-h-64 place-items-center text-center text-white/40">Load the planar deck and reveal a plane to begin.</div>}</section><section className="rounded-lg border border-white/10 bg-black/35 p-3"><div className="text-xs font-black uppercase tracking-wider text-white/55">Planechase mechanics</div><div className="mt-2 grid gap-1 text-sm font-semibold text-white/75"><div><span className="font-black text-emerald-300">Planeswalk:</span> move the current plane to discard and reveal the next planar card.</div><div><span className="font-black text-red-300">Chaos:</span> resolve the current plane’s chaos ability.</div><div><span className="font-black text-white">Blank:</span> no planar ability resolves.</div></div></section></aside>;
+}
+
+function ArchenemyDisplay({ game, connected, displayQrUrl }: { game: CommanderGame; connected: boolean; displayQrUrl: string }) {
+  const activePlayer = game.players.find((player) => player.id === game.activePlayerId);
+  const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
+  const winner = game.players.find((player) => player.id === game.winnerPlayerId);
+  const archenemy = game.players.find((player) => player.id === game.archenemyPlayerId);
+  const timerSeconds = game.turnSeconds + (game.timerStartedAt ? Math.max(0, Math.floor((Date.now() - game.timerStartedAt) / 1000)) : 0);
+  const playerGrid = game.players.length <= 2 ? "grid-cols-1 md:grid-cols-2" : game.players.length === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2";
+  return <main className="fixed-screen flex flex-col overflow-hidden bg-zinc-950 text-white"><GameStatusBar game={game} connected={connected} activePlayer={activePlayer} randomPlayer={randomPlayer} winner={winner} timerSeconds={timerSeconds} displayQrUrl={displayQrUrl} /><ArchenemyChatBubble key={`${game.archenemySchemeCount}-${game.archenemyAiLastAction}-${game.archenemyAiTaunt}`} game={game} /><div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,31vw)]"><section className={cn("grid min-h-0 auto-rows-fr gap-2", playerGrid)}>{game.players.map((player) => <PlayerDisplay key={player.id} player={player} players={game.players} compact={game.players.length >= 4} isActive={game.activePlayerId === player.id} isRandom={game.randomPlayerId === player.id} isWinner={game.winnerPlayerId === player.id} isArchenemy={game.archenemyPlayerId === player.id} />)}</section><ArchenemyStage game={game} archenemyName={archenemy?.name ?? "The Archenemy"} /></div></main>;
+}
+
+function ArchenemyStage({ game, archenemyName }: { game: CommanderGame; archenemyName: string }) {
+  const scheme = game.archenemyCurrentScheme;
+  return <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2 rounded-lg border border-red-300/25 bg-red-950/20 p-3"><div className="grid grid-cols-3 gap-2"><DisplayStat label="Scheme deck" value={game.archenemyDeck.length} tone="text-red-200" /><DisplayStat label="Scheme discard" value={game.archenemyDiscard.length} /><DisplayStat label="Schemes set" value={game.archenemySchemeCount} /></div><section className="min-h-0 overflow-auto rounded-lg border border-red-300/30 bg-black/40 p-3"><div className="mb-2 flex items-center justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-red-200">Scheme in motion</div><h2 className="text-xl font-black uppercase">{scheme?.name ?? (game.archenemyScheme || "No scheme revealed")}</h2></div><span className="rounded-full bg-red-400/20 px-2 py-1 text-[10px] font-black uppercase text-red-100">{scheme ? "Resolve" : "Ready"}</span></div>{scheme ? <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(12rem,1.15fr)] lg:items-center"><div className="flex min-h-0 items-center justify-center overflow-hidden rounded-lg bg-black/50 p-3"><img src={scheme.imageUrl} alt={scheme.name} className="max-h-[40vh] max-w-full rounded object-contain shadow-[0_18px_55px_rgba(0,0,0,0.7)]" /></div><div className="min-h-0 overflow-auto rounded-lg border border-red-300/25 bg-red-950/35 p-3"><div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-red-200">Scheme text</div>{scheme.oracleText ? <DisplayOracleText text={scheme.oracleText} className="max-w-none border-0 bg-transparent p-0 text-base leading-6" /> : <p className="text-sm font-semibold leading-5 text-white/60">Rules text is unavailable for this offline card. Reconnect to Scryfall to load the exact scheme text.</p>}</div></div> : <div className="grid h-full min-h-64 place-items-center text-center text-white/40">Reveal a scheme to put the archenemy’s plan in motion.</div>}</section><section className="rounded-lg border border-white/10 bg-black/35 p-3"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-red-200"><span className={cn("grid h-8 w-8 place-items-center rounded-full ring-1", archenemyAccentClasses(game.archenemyAiAccent))}>{archenemyAvatarIcon(game.archenemyAiAvatar)}</span><span>{game.archenemyAiName || "The Archenemy"}</span></div><div className="mt-1 text-sm font-black">{archenemyName} · {game.archenemyDeckName || "Scheme deck"}</div>{game.archenemyAiTaunt ? <p className="mt-2 text-sm font-semibold leading-5 text-white/80">“{game.archenemyAiTaunt}”</p> : null}<div className="mt-3 grid gap-1 text-xs font-semibold text-white/60"><div><span className="font-black text-red-200">Reveal:</span> set a scheme in motion.</div><div><span className="font-black text-red-200">Resolve:</span> apply its ability, then abandon or replace it.</div></div></section></aside>;
+}
+
 function HordeDisplay({ game, connected }: { game: CommanderGame; connected: boolean }) {
   const previousBattlefieldIds = useRef<Set<string>>(new Set());
   const observedTurn = useRef(game.hordeTurn);
@@ -173,7 +210,7 @@ function HordeResolutionDialog({ game }: { game: CommanderGame }) {
 
 function DisplayHordeCard({ card, compact = false, large = false, animate = false }: { card: VariantDeckCard; compact?: boolean; large?: boolean; animate?: boolean }) { return <div className={cn("shrink-0", animate && "horde-card-reveal", compact ? "w-16" : large ? "w-64" : "w-full")}><div className={cn("aspect-[5/7] overflow-hidden rounded border border-white/15 bg-zinc-900", large && "shadow-[0_0_40px_rgba(248,113,113,0.25)]")}>{card.imageUrl ? <img src={card.imageUrl} alt={card.name} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center p-2 text-center text-[10px] font-black">{card.name}</div>}</div>{!compact ? <div className="mt-1 truncate text-center text-xs font-bold">{card.name}</div> : null}</div>; }
 function DisplayStat({ label, value, tone = "text-white" }: { label: string; value: number; tone?: string }) { return <div className="rounded-lg border border-white/10 bg-black/35 p-2"><div className="text-[10px] font-black uppercase tracking-wider text-white/45">{label}</div><div className={cn("text-3xl font-black", tone)}>{value}</div></div>; }
-function DisplayOracleText({ text }: { text?: string }) { return text ? <div className="w-full max-w-md rounded-lg border border-white/15 bg-black/50 p-3 text-left text-sm font-semibold leading-5 text-white/85"><div className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Card text</div><div className="whitespace-pre-line">{text}</div></div> : null; }
+function DisplayOracleText({ text, className }: { text?: string; className?: string }) { return text ? <div className={cn("w-full max-w-md rounded-lg border border-white/15 bg-black/50 p-3 text-left text-sm font-semibold leading-5 text-white/85", className)}><div className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Card text</div><div className="whitespace-pre-line">{text}</div></div> : null; }
 function phaseLabel(game: CommanderGame) { return game.hordePendingChoice ? "Choice pending" : game.hordeResolutionPhase.replace("_", " "); }
 
 function ArchenemyChatBubble({ game }: { game: CommanderGame }) {
@@ -181,8 +218,24 @@ function ArchenemyChatBubble({ game }: { game: CommanderGame }) {
     return null;
   }
 
+  return <TimedArchenemyChatBubble game={game} />;
+}
+
+function TimedArchenemyChatBubble({ game }: { game: CommanderGame }) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    setVisible(true);
+    const timeout = window.setTimeout(() => setVisible(false), 7500);
+    return () => window.clearTimeout(timeout);
+  }, [game.archenemyAiTaunt, game.archenemySchemeCount]);
+
+  if (!visible) {
+    return null;
+  }
+
   return (
-    <aside className="pointer-events-none absolute left-3 top-20 z-50 hidden max-w-[min(30rem,52vw)] gap-3 rounded-lg border border-white/10 bg-zinc-950/92 p-3 text-white shadow-2xl backdrop-blur screen-text-shadow md:flex">
+    <aside className="archenemy-taunt-bubble pointer-events-none absolute left-3 top-20 z-50 hidden max-w-[min(30rem,52vw)] gap-3 rounded-lg border border-white/10 bg-zinc-950/92 p-3 text-white shadow-2xl backdrop-blur screen-text-shadow md:flex">
       <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-md ring-1", archenemyAccentClasses(game.archenemyAiAccent))}>
         {archenemyAvatarIcon(game.archenemyAiAvatar)}
       </div>
@@ -598,6 +651,21 @@ function archenemyAvatarIcon(avatar: string) {
   }
   if (avatar === "house") {
     return <Bot className="h-6 w-6" />;
+  }
+  if (avatar === "eye") {
+    return <Eye className="h-6 w-6" />;
+  }
+  if (avatar === "flame") {
+    return <Flame className="h-6 w-6" />;
+  }
+  if (avatar === "sword") {
+    return <Swords className="h-6 w-6" />;
+  }
+  if (avatar === "machine") {
+    return <Cpu className="h-6 w-6" />;
+  }
+  if (avatar === "mask") {
+    return <Ghost className="h-6 w-6" />;
   }
   return <Crown className="h-6 w-6" />;
 }
