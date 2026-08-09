@@ -10,6 +10,8 @@ export function startHordeGame(game: CommanderGame, deck: ImportedHordeDeck): Co
   const startingLife = Math.max(20, game.players.length * 20);
   return {
     ...game,
+    mode: "horde",
+    setupStatus: "ready",
     hordeMode: true,
     hordeDeckName: deck.name,
     hordeSourceUrl: deck.sourceUrl,
@@ -40,6 +42,7 @@ export function advanceHordeTurn(game: CommanderGame): CommanderGame {
     return {
       ...game,
       hordeSetupTurnsRemaining: remaining,
+      setupStatus: remaining > 0 ? "ready" : "active",
       hordeResolutionPhase: remaining > 0 ? "setup" : "ready",
       hordeStatus: remaining > 0 ? "setup" : "active",
       hordeLog: appendLog(game, `Survivor setup turn completed. ${remaining} setup turn${remaining === 1 ? "" : "s"} remaining.`, "setup")

@@ -19,6 +19,7 @@ import {
   TabletSmartphone
 } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
+import { GameStartWizard } from "@/components/game-start-wizard";
 import { InteriorNav } from "@/components/interior-nav";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,8 +27,10 @@ import {
   createSavedGame,
   fetchSavedGames,
   setCurrentGameAccess,
+  saveGame,
   type SavedGameSummary
 } from "@/lib/game-state";
+import type { GameMode } from "@/lib/commander";
 import { createClient } from "@/utils/supabase/client";
 
 type GameInvite = {
@@ -49,6 +52,8 @@ export default function GamesPage() {
   const [copiedGameId, setCopiedGameId] = useState<string | null>(null);
   const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
   const [inviteStatus, setInviteStatus] = useState<Record<string, string>>({});
+  const [newGameOpen, setNewGameOpen] = useState(false);
+  const [creatingGame, setCreatingGame] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -68,13 +73,20 @@ export default function GamesPage() {
     });
   }, []);
 
-  async function newSavedGame() {
+  async function newSavedGame(mode: GameMode, name: string) {
     setError("");
+    setCreatingGame(true);
     try {
-      await createSavedGame(createDefaultGame(), "Commander Game");
-      window.location.href = "/control";
+      const base = createDefaultGame();
+      const game = { ...base, mode, setupStatus: "draft" as const, hordeMode: mode === "horde", archenemyMode: mode === "archenemy", planechaseMode: mode === "planechase" };
+      const saved = await createSavedGame(game, name);
+      saveGame(game);
+      setCurrentGameAccess({ gameId: saved.id, displayToken: saved.display_token ?? null, controlToken: saved.control_token ?? null });
+      window.location.href = mode === "horde" ? "/horde" : "/control";
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Unable to create game");
+    } finally {
+      setCreatingGame(false);
     }
   }
 
@@ -189,7 +201,7 @@ export default function GamesPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void newSavedGame()} disabled={!email}>
+            <Button onClick={() => setNewGameOpen(true)} disabled={!email}>
               <Plus className="h-4 w-4" />
               New Game
             </Button>
@@ -248,6 +260,7 @@ export default function GamesPage() {
           </>
         )}
       </section>
+      <GameStartWizard open={newGameOpen} busy={creatingGame} onCancel={() => setNewGameOpen(false)} onCreate={(mode, name) => void newSavedGame(mode, name)} />
     </main>
   );
 }
@@ -361,7 +374,7 @@ function GameCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 text-primary">
           <Gamepad2 className="h-4 w-4" />
-          <span className="text-sm font-black uppercase tracking-wider">Commander</span>
+          <span className="text-sm font-black uppercase tracking-wider">{formatGameMode(game.mode)}</span>
         </div>
         {!game.is_active ? (
           <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-black uppercase text-muted-foreground">
@@ -376,6 +389,7 @@ function GameCard({
       <p className="mt-1 text-xs text-muted-foreground">
         Updated {new Date(game.updated_at).toLocaleString()}
       </p>
+      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">{formatSetupStatus(game.setup_status)}</p>
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <Button
           type="button"
@@ -466,6 +480,14 @@ function buildViewOnlyHref(game: SavedGameSummary) {
   }
 
   return `${window.location.origin}/display?${params.toString()}`;
+}
+
+function formatGameMode(mode: SavedGameSummary["mode"]) {
+  return mode === "horde" ? "Horde" : mode === "archenemy" ? "Archenemy" : mode === "planechase" ? "Planechase" : "Commander";
+}
+
+function formatSetupStatus(status: SavedGameSummary["setup_status"]) {
+  return status === "active" ? "Active" : status === "complete" ? "Complete" : status === "ready" ? "Ready to play" : "Setup in progress";
 }
 
 function isThisMonth(value: string) {

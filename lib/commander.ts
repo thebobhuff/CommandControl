@@ -46,8 +46,12 @@ export type HordeLogEntry = {
 };
 
 export type ArchenemyAiAction = "reveal_scheme" | "taunt" | "pressure_leader" | "recover" | "wait";
+export type GameMode = "commander" | "horde" | "archenemy" | "planechase";
+export type SetupStatus = "draft" | "ready" | "active" | "complete";
 
 export type CommanderGame = {
+  mode: GameMode;
+  setupStatus: SetupStatus;
   startingLife: number;
   players: CommanderPlayer[];
   archenemyMode: boolean;
@@ -149,6 +153,8 @@ export function createDefaultGame(): CommanderGame {
   }));
 
   return hydrateCommanderDamage({
+    mode: "commander",
+    setupStatus: "draft",
     startingLife: 40,
     players,
     archenemyMode: false,
@@ -208,9 +214,12 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
   const winnerPlayerId = game.winnerPlayerId && ids.includes(game.winnerPlayerId) ? game.winnerPlayerId : null;
   const archenemyPlayerId = game.archenemyPlayerId && ids.includes(game.archenemyPlayerId) ? game.archenemyPlayerId : ids[0] ?? null;
   const archenemyMode = Boolean(game.archenemyMode);
+  const mode = hydrateGameMode(game.mode, game.hordeMode, archenemyMode, game.planechaseMode);
 
   return {
     ...game,
+    mode,
+    setupStatus: hydrateSetupStatus(game.setupStatus),
     archenemyMode,
     archenemyPlayerId: archenemyMode ? archenemyPlayerId : null,
     archenemyAiEnabled: Boolean(game.archenemyAiEnabled),
@@ -321,6 +330,26 @@ function hydrateHordePhase(phase: HordeResolutionPhase | undefined): HordeResolu
 
 function hydrateHordeStatus(status: CommanderGame["hordeStatus"] | undefined): CommanderGame["hordeStatus"] {
   return status === "setup" || status === "active" || status === "survivors_win" || status === "horde_wins" ? status : "setup";
+}
+
+function hydrateGameMode(mode: GameMode | undefined, hordeMode: boolean | undefined, archenemyMode: boolean, planechaseMode: boolean | undefined): GameMode {
+  if (hordeMode) {
+    return "horde";
+  }
+  if (archenemyMode) {
+    return "archenemy";
+  }
+  if (planechaseMode) {
+    return "planechase";
+  }
+  if (mode === "commander" || mode === "horde" || mode === "archenemy" || mode === "planechase") {
+    return mode;
+  }
+  return "commander";
+}
+
+function hydrateSetupStatus(status: SetupStatus | undefined): SetupStatus {
+  return status === "draft" || status === "ready" || status === "active" || status === "complete" ? status : "draft";
 }
 
 function hydrateHordeChoice(choice: HordePendingChoice | null | undefined) {

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { GlowingBorder } from "@/components/aceternity/glowing-border";
+import { GameStartWizard } from "@/components/game-start-wizard";
 import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,7 @@ export default function ControlPage() {
   const [savedPlayers, setSavedPlayers] = useState<SavedPlayerProfile[]>([]);
   const [variantDeckStatus, setVariantDeckStatus] = useState("");
   const [archenemyAiStatus, setArchenemyAiStatus] = useState("");
+  const [newGameOpen, setNewGameOpen] = useState(false);
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
     displayToken: null,
@@ -282,7 +284,28 @@ export default function ControlPage() {
   }
 
   function newGame() {
-    commit(createDefaultGame());
+    setNewGameOpen(true);
+  }
+
+  async function startNewGame(mode: "commander" | "horde" | "archenemy" | "planechase", name: string) {
+    const next = createDefaultGame();
+    const configured = { ...next, mode, setupStatus: "draft" as const, hordeMode: mode === "horde", archenemyMode: mode === "archenemy", planechaseMode: mode === "planechase" };
+    try {
+      const saved = await createSavedGame(configured, name);
+      setSavedGameId(saved.id);
+      setGameAccess(getCurrentGameAccess());
+      setGame(configured);
+      saveGame(configured);
+      setServerStatus("New game started");
+      setNewGameOpen(false);
+      if (mode === "horde") {
+        window.location.href = "/horde";
+      }
+    } catch {
+      commit(configured);
+      setServerStatus("Started locally; save unavailable");
+      setNewGameOpen(false);
+    }
   }
 
   function cycleDayNight() {
@@ -319,10 +342,22 @@ export default function ControlPage() {
     });
   }
 
+  function setDisplayMode(mode: "commander" | "horde" | "archenemy" | "planechase") {
+    commit({
+      ...game,
+      mode,
+      hordeMode: mode === "horde",
+      archenemyMode: mode === "archenemy",
+      planechaseMode: mode === "planechase"
+    });
+  }
+
   function toggleArchenemyMode() {
     commit({
       ...game,
       archenemyMode: !game.archenemyMode,
+      hordeMode: false,
+      planechaseMode: false,
       archenemyPlayerId: !game.archenemyMode ? game.archenemyPlayerId ?? game.players[0]?.id ?? null : null,
       archenemyScheme: !game.archenemyMode ? game.archenemyScheme : "",
       archenemySchemeCount: !game.archenemyMode ? game.archenemySchemeCount : 0
@@ -536,6 +571,8 @@ export default function ControlPage() {
     commit({
       ...game,
       planechaseMode: !game.planechaseMode,
+      hordeMode: false,
+      archenemyMode: false,
       planarDieRoll: null
     });
   }
@@ -673,6 +710,9 @@ export default function ControlPage() {
             onResetLifeTotals={resetLifeTotals}
             onSaveCurrentGame={() => void saveCurrentGame()}
             onNewGame={newGame}
+            newGameOpen={newGameOpen}
+            onStartNewGame={(mode, name) => void startNewGame(mode, name)}
+            onCancelNewGame={() => setNewGameOpen(false)}
             onAddPlayer={addPlayer}
             onStartingLife={(startingLife) => commit({ ...game, startingLife })}
             onCycleDayNight={cycleDayNight}
@@ -683,6 +723,7 @@ export default function ControlPage() {
             onResetTimer={resetTimer}
             onToggleDisplayQr={() => commit({ ...game, showDisplayQr: !game.showDisplayQr })}
             onToggleArchenemyMode={toggleArchenemyMode}
+            onSetDisplayMode={setDisplayMode}
             onSetArchenemyPlayer={setArchenemyPlayer}
             onPatchArchenemyAi={patchArchenemyAi}
             onApplyArchenemyPreset={applyArchenemyPreset}
@@ -756,6 +797,9 @@ function ControlSidebar({
   onResetLifeTotals,
   onSaveCurrentGame,
   onNewGame,
+  newGameOpen,
+  onStartNewGame,
+  onCancelNewGame,
   onAddPlayer,
   onStartingLife,
   onCycleDayNight,
@@ -766,6 +810,7 @@ function ControlSidebar({
   onResetTimer,
   onToggleDisplayQr,
   onToggleArchenemyMode,
+  onSetDisplayMode,
   onSetArchenemyPlayer,
   onPatchArchenemyAi,
   onApplyArchenemyPreset,
@@ -792,6 +837,9 @@ function ControlSidebar({
   onResetLifeTotals: () => void;
   onSaveCurrentGame: () => void;
   onNewGame: () => void;
+  newGameOpen: boolean;
+  onStartNewGame: (mode: "commander" | "horde" | "archenemy" | "planechase", name: string) => void;
+  onCancelNewGame: () => void;
   onAddPlayer: () => void;
   onStartingLife: (startingLife: number) => void;
   onCycleDayNight: () => void;
@@ -802,6 +850,7 @@ function ControlSidebar({
   onResetTimer: () => void;
   onToggleDisplayQr: () => void;
   onToggleArchenemyMode: () => void;
+  onSetDisplayMode: (mode: "commander" | "horde" | "archenemy" | "planechase") => void;
   onSetArchenemyPlayer: (playerId: string) => void;
   onPatchArchenemyAi: (patch: Partial<Pick<CommanderGame, "archenemyAiEnabled" | "archenemyAiName" | "archenemyAiPersona" | "archenemyAiAvatar" | "archenemyAiAccent" | "archenemyDeckPresetId" | "archenemyDeckName" | "archenemyAiTaunt" | "archenemyAiPlan" | "archenemyAiLastAction">>) => void;
   onApplyArchenemyPreset: (presetId: string) => void;
@@ -859,7 +908,7 @@ function ControlSidebar({
         </Button>
         <Button variant="outline" size="sm" onClick={onNewGame} className="justify-start">
           <Skull className="h-4 w-4" />
-          New
+          New game
         </Button>
         <Button asChild variant="outline" size="sm" className="justify-start">
           <Link href="/games">
@@ -885,6 +934,8 @@ function ControlSidebar({
         </Button>
       </div>
 
+      <GameStartWizard open={newGameOpen} onCancel={onCancelNewGame} onCreate={onStartNewGame} />
+
       <div className="space-y-1">
         <Label htmlFor="starting-life">Starting life</Label>
         <Input
@@ -894,6 +945,27 @@ function ControlSidebar({
           value={game.startingLife}
           onChange={(event) => onStartingLife(Number(event.target.value || 40))}
         />
+      </div>
+
+      <div className="grid gap-2 rounded-md border border-primary/30 bg-primary/5 p-2">
+        <div className="flex items-center justify-between">
+          <Label>Current game mode</Label>
+          <span className="text-[10px] font-black uppercase tracking-wider text-primary">{displayModeLabel(game)}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          <Button variant={!game.hordeMode && !game.archenemyMode && !game.planechaseMode ? "secondary" : "outline"} size="sm" className="h-8 justify-start px-2 text-xs" onClick={() => onSetDisplayMode("commander")}>
+            <Monitor className="h-3.5 w-3.5" /> Commander
+          </Button>
+          <Button variant={game.hordeMode ? "secondary" : "outline"} size="sm" className="h-8 justify-start px-2 text-xs" onClick={() => onSetDisplayMode("horde")}>
+            <Skull className="h-3.5 w-3.5" /> Horde
+          </Button>
+          <Button variant={game.archenemyMode ? "secondary" : "outline"} size="sm" className="h-8 justify-start px-2 text-xs" onClick={() => onSetDisplayMode("archenemy")}>
+            <ShieldAlert className="h-3.5 w-3.5" /> Archenemy
+          </Button>
+          <Button variant={game.planechaseMode ? "secondary" : "outline"} size="sm" className="h-8 justify-start px-2 text-xs" onClick={() => onSetDisplayMode("planechase")}>
+            <Sparkles className="h-3.5 w-3.5" /> Planechase
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
@@ -1551,6 +1623,19 @@ function createSchemeTaunt(game: CommanderGame, schemeName: string) {
     `${schemeName} is now in motion. Try to look surprised.`
   ];
   return options[Math.floor(Math.random() * options.length)];
+}
+
+function displayModeLabel(game: CommanderGame) {
+  if (game.mode === "horde" || game.hordeMode) {
+    return "Horde";
+  }
+  if (game.mode === "archenemy" || game.archenemyMode) {
+    return "Archenemy";
+  }
+  if (game.mode === "planechase" || game.planechaseMode) {
+    return "Planechase";
+  }
+  return "Commander";
 }
 
 function createLifeSwingAiPatch(game: CommanderGame, player: CommanderPlayer, amount: number): Partial<CommanderGame> {
