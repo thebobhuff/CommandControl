@@ -23,6 +23,26 @@ export type VariantDeckCard = {
   id: string;
   name: string;
   imageUrl: string;
+  typeLine?: string;
+  oracleText?: string;
+  power?: string;
+  toughness?: string;
+  isToken?: boolean;
+};
+
+export type HordeResolutionPhase = "setup" | "ready" | "reveal" | "tokens" | "spell" | "combat" | "choice" | "complete";
+
+export type HordePendingChoice = {
+  sourceCard: VariantDeckCard;
+  prompt: string;
+  options: string[];
+};
+
+export type HordeLogEntry = {
+  id: string;
+  message: string;
+  phase: HordeResolutionPhase;
+  createdAt: number;
 };
 
 export type ArchenemyAiAction = "reveal_scheme" | "taunt" | "pressure_leader" | "recover" | "wait";
@@ -47,6 +67,22 @@ export type CommanderGame = {
   archenemyDeck: VariantDeckCard[];
   archenemyDiscard: VariantDeckCard[];
   archenemyCurrentScheme: VariantDeckCard | null;
+  hordeMode: boolean;
+  hordeDeckName: string;
+  hordeSourceUrl: string;
+  hordeDeck: VariantDeckCard[];
+  hordeDiscard: VariantDeckCard[];
+  hordeBattlefield: VariantDeckCard[];
+  hordeRevealQueue: VariantDeckCard[];
+  hordeCurrentCard: VariantDeckCard | null;
+  hordeResolutionPhase: HordeResolutionPhase;
+  hordeTurn: number;
+  hordeSetupTurnsRemaining: number;
+  hordeSharedLife: number;
+  hordePendingChoice: HordePendingChoice | null;
+  hordeLastChoice: string;
+  hordeLog: HordeLogEntry[];
+  hordeStatus: "setup" | "active" | "survivors_win" | "horde_wins";
   planechaseMode: boolean;
   planarDeck: VariantDeckCard[];
   planarDiscard: VariantDeckCard[];
@@ -132,6 +168,22 @@ export function createDefaultGame(): CommanderGame {
     archenemyDeck: [],
     archenemyDiscard: [],
     archenemyCurrentScheme: null,
+    hordeMode: false,
+    hordeDeckName: "",
+    hordeSourceUrl: "",
+    hordeDeck: [],
+    hordeDiscard: [],
+    hordeBattlefield: [],
+    hordeRevealQueue: [],
+    hordeCurrentCard: null,
+    hordeResolutionPhase: "ready",
+    hordeTurn: 0,
+    hordeSetupTurnsRemaining: 0,
+    hordeSharedLife: 0,
+    hordePendingChoice: null,
+    hordeLastChoice: "",
+    hordeLog: [],
+    hordeStatus: "setup",
     planechaseMode: false,
     planarDeck: [],
     planarDiscard: [],
@@ -176,6 +228,22 @@ export function hydrateCommanderDamage(game: CommanderGame): CommanderGame {
     archenemyDeck: hydrateDeck(game.archenemyDeck),
     archenemyDiscard: hydrateDeck(game.archenemyDiscard),
     archenemyCurrentScheme: hydrateDeckCard(game.archenemyCurrentScheme),
+    hordeMode: Boolean(game.hordeMode),
+    hordeDeckName: game.hordeDeckName ?? "",
+    hordeSourceUrl: game.hordeSourceUrl ?? "",
+    hordeDeck: hydrateDeck(game.hordeDeck),
+    hordeDiscard: hydrateDeck(game.hordeDiscard),
+    hordeBattlefield: hydrateDeck(game.hordeBattlefield),
+    hordeRevealQueue: hydrateDeck(game.hordeRevealQueue),
+    hordeCurrentCard: hydrateDeckCard(game.hordeCurrentCard),
+    hordeResolutionPhase: hydrateHordePhase(game.hordeResolutionPhase),
+    hordeTurn: Math.max(0, game.hordeTurn ?? 0),
+    hordeSetupTurnsRemaining: Math.max(0, game.hordeSetupTurnsRemaining ?? 0),
+    hordeSharedLife: Math.max(0, game.hordeSharedLife ?? 0),
+    hordePendingChoice: hydrateHordeChoice(game.hordePendingChoice),
+    hordeLastChoice: game.hordeLastChoice ?? "",
+    hordeLog: Array.isArray(game.hordeLog) ? game.hordeLog.filter((entry) => entry && typeof entry.id === "string" && typeof entry.message === "string") : [],
+    hordeStatus: hydrateHordeStatus(game.hordeStatus),
     planechaseMode: Boolean(game.planechaseMode),
     planarDeck: hydrateDeck(game.planarDeck),
     planarDiscard: hydrateDeck(game.planarDiscard),
@@ -224,7 +292,10 @@ function hydrateDeck(deck: VariantDeckCard[] | undefined) {
     return [];
   }
 
-  return deck.map(hydrateDeckCard).filter((card): card is VariantDeckCard => Boolean(card));
+  return deck.flatMap((card) => {
+    const hydrated = hydrateDeckCard(card);
+    return hydrated ? [hydrated] : [];
+  });
 }
 
 function hydrateDeckCard(card: VariantDeckCard | null | undefined) {
@@ -235,6 +306,27 @@ function hydrateDeckCard(card: VariantDeckCard | null | undefined) {
   return {
     id: card.id,
     name: card.name,
-    imageUrl: typeof card.imageUrl === "string" ? card.imageUrl : ""
+    imageUrl: typeof card.imageUrl === "string" ? card.imageUrl : "",
+    typeLine: typeof card.typeLine === "string" ? card.typeLine : "",
+    oracleText: typeof card.oracleText === "string" ? card.oracleText : "",
+    power: typeof card.power === "string" ? card.power : "",
+    toughness: typeof card.toughness === "string" ? card.toughness : "",
+    isToken: Boolean(card.isToken)
   };
+}
+
+function hydrateHordePhase(phase: HordeResolutionPhase | undefined): HordeResolutionPhase {
+  return phase === "setup" || phase === "ready" || phase === "reveal" || phase === "tokens" || phase === "spell" || phase === "combat" || phase === "choice" || phase === "complete" ? phase : "ready";
+}
+
+function hydrateHordeStatus(status: CommanderGame["hordeStatus"] | undefined): CommanderGame["hordeStatus"] {
+  return status === "setup" || status === "active" || status === "survivors_win" || status === "horde_wins" ? status : "setup";
+}
+
+function hydrateHordeChoice(choice: HordePendingChoice | null | undefined) {
+  if (!choice || !choice.sourceCard || typeof choice.prompt !== "string" || !Array.isArray(choice.options)) {
+    return null;
+  }
+  const sourceCard = hydrateDeckCard(choice.sourceCard);
+  return sourceCard ? { sourceCard, prompt: choice.prompt, options: choice.options.filter((option): option is string => typeof option === "string") } : null;
 }

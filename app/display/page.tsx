@@ -68,6 +68,10 @@ export default function DisplayPage() {
     return "grid-cols-1 md:grid-cols-2 md:grid-rows-2";
   }, [game.players.length]);
 
+  if (game.hordeMode) {
+    return <HordeDisplay game={game} connected={connected} />;
+  }
+
   const activePlayer = game.players.find((player) => player.id === game.activePlayerId);
   const randomPlayer = game.players.find((player) => player.id === game.randomPlayerId);
   const winner = game.players.find((player) => player.id === game.winnerPlayerId);
@@ -123,6 +127,54 @@ export default function DisplayPage() {
     </main>
   );
 }
+
+function HordeDisplay({ game, connected }: { game: CommanderGame; connected: boolean }) {
+  const previousBattlefieldIds = useRef<Set<string>>(new Set());
+  const observedTurn = useRef(game.hordeTurn);
+  const [dialogTurn, setDialogTurn] = useState<number | null>(null);
+  const battlefieldIds = new Set(game.hordeBattlefield.map((card) => card.id));
+  const enteringBattlefieldIds = new Set([...battlefieldIds].filter((id) => !previousBattlefieldIds.current.has(id)));
+  useEffect(() => {
+    previousBattlefieldIds.current = battlefieldIds;
+  }, [game.hordeBattlefield]);
+  useEffect(() => {
+    if (game.hordeTurn > observedTurn.current && game.hordeRevealQueue.length > 0) {
+      setDialogTurn(game.hordeTurn);
+      const timeout = window.setTimeout(() => setDialogTurn(null), 4200);
+      observedTurn.current = game.hordeTurn;
+      return () => window.clearTimeout(timeout);
+    }
+    observedTurn.current = game.hordeTurn;
+  }, [game.hordeRevealQueue.length, game.hordeTurn]);
+  const creatures = game.hordeBattlefield.filter((card) => card.typeLine?.toLowerCase().includes("creature"));
+  const queueCards = game.hordeRevealQueue.filter((card) => card.id !== game.hordeCurrentCard?.id);
+  return (
+    <main className="fixed-screen flex flex-col overflow-hidden bg-zinc-950 text-white">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-black/80 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3"><Bot className="h-7 w-7 text-red-400" /><div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-300">Commander Control · Horde Mode</div><div className="text-xl font-black uppercase">{game.hordeDeckName || "The Horde"}</div></div></div>
+        <div className="flex items-center gap-2 text-xs font-black uppercase"><span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-red-400")} />{phaseLabel(game)} · Turn {game.hordeTurn}</div>
+      </header>
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,30vw)]">
+        <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-2">
+          <div className="grid grid-cols-3 gap-2"><DisplayStat label="Survivor life" value={game.hordeSharedLife} tone="text-emerald-300" /><DisplayStat label="Horde deck" value={game.hordeDeck.length} /><DisplayStat label="Horde graveyard" value={game.hordeDiscard.length} /></div>
+          <section className="min-h-0 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3"><div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-wider text-white/70">Horde battlefield</h2><span className="text-xs font-bold text-white/45">{creatures.length} creatures · {game.hordeBattlefield.length} permanents</span></div>{game.hordeBattlefield.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">{game.hordeBattlefield.map((card) => <DisplayHordeCard key={card.id} card={card} animate={enteringBattlefieldIds.has(card.id)} />)}</div> : <div className="grid h-full place-items-center text-white/35">The battlefield is empty.</div>}</section>
+        </section>
+        <aside className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(9rem,20vh)_auto] gap-2"><section className="min-h-0 overflow-auto rounded-lg border border-red-300/25 bg-red-950/20 p-3"><div className="mb-2 flex items-center justify-between"><span className="rounded bg-red-500 px-2 py-1 text-[10px] font-black uppercase">Currently resolving</span><span className="text-xs font-bold text-white/45">{game.hordeResolutionPhase}</span></div>{game.hordePendingChoice ? <div className="grid h-full place-items-center p-4 text-center"><Dices className="h-14 w-14 text-primary" /><div className="mt-3 text-xl font-black">Random determination required</div><div className="mt-2 text-sm text-white/60">{game.hordePendingChoice.prompt}</div></div> : game.hordeCurrentCard ? <div className="grid content-center justify-items-center gap-3"><DisplayHordeCard key={`${game.hordeTurn}-${game.hordeCurrentCard.id}`} card={game.hordeCurrentCard} large animate /><div className="text-center text-lg font-black">{game.hordeCurrentCard.name}</div><DisplayOracleText text={game.hordeCurrentCard.oracleText} /></div> : <div className="grid h-full place-items-center text-white/35">Waiting for the next Horde action.</div>}</section><section className="min-h-0 overflow-hidden rounded-lg border border-amber-300/25 bg-amber-950/15 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-black uppercase tracking-wider text-amber-200">Reveal queue</span><span className="text-xs font-bold text-white/45">{queueCards.length} token{queueCards.length === 1 ? "" : "s"}</span></div><div className="flex h-[calc(100%-1.5rem)] gap-2 overflow-x-auto pb-1">{queueCards.length ? queueCards.map((card) => <DisplayHordeCard key={card.id} card={card} compact animate />) : <span className="self-center text-sm text-white/35">No additional cards revealed.</span>}</div></section><section className="max-h-44 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3"><div className="mb-2 text-xs font-black uppercase tracking-wider text-white/50">Resolution log</div>{game.hordeLog.slice().reverse().map((entry) => <div key={entry.id} className="mb-1 text-xs"><span className="mr-2 font-black uppercase text-red-300">{entry.phase}</span>{entry.message}</div>)}</section></aside>
+      </div>
+      {dialogTurn === game.hordeTurn && game.hordeRevealQueue.length > 0 ? <HordeResolutionDialog game={game} /> : null}
+    </main>
+  );
+}
+
+function HordeResolutionDialog({ game }: { game: CommanderGame }) {
+  const resolvingCard = game.hordeCurrentCard ?? game.hordeRevealQueue[game.hordeRevealQueue.length - 1];
+  return <div className="horde-resolution-dialog fixed inset-0 z-50 grid place-items-center bg-black/80 p-6 backdrop-blur-sm"><div className="w-full max-w-6xl rounded-2xl border border-red-300/40 bg-zinc-950/95 p-5 text-white shadow-[0_0_100px_rgba(248,113,113,0.28)]"><div className="flex items-center justify-between"><div><div className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Horde turn {game.hordeTurn}</div><h2 className="mt-1 text-3xl font-black uppercase">{game.hordePendingChoice ? "Choice required" : "Horde reveal"}</h2></div><div className="rounded-full border border-white/15 px-3 py-1 text-xs font-black uppercase text-white/60">{game.hordeRevealQueue.length} cards</div></div><div className="mt-5 grid gap-6 lg:grid-cols-[auto_minmax(20rem,1fr)] lg:items-center"><div className="flex flex-wrap items-end justify-center gap-4">{game.hordeRevealQueue.map((card) => <DisplayHordeCard key={card.id} card={card} large animate />)}</div><div className="grid gap-3">{resolvingCard ? <><div className="text-xl font-black uppercase text-amber-200">{resolvingCard.name}</div><DisplayOracleText text={resolvingCard.oracleText} /></> : null}<p className="text-sm font-bold uppercase tracking-wider text-white/55">Tokens enter the battlefield before the resolving card.</p></div></div></div></div>;
+}
+
+function DisplayHordeCard({ card, compact = false, large = false, animate = false }: { card: VariantDeckCard; compact?: boolean; large?: boolean; animate?: boolean }) { return <div className={cn("shrink-0", animate && "horde-card-reveal", compact ? "w-16" : large ? "w-64" : "w-full")}><div className={cn("aspect-[5/7] overflow-hidden rounded border border-white/15 bg-zinc-900", large && "shadow-[0_0_40px_rgba(248,113,113,0.25)]")}>{card.imageUrl ? <img src={card.imageUrl} alt={card.name} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center p-2 text-center text-[10px] font-black">{card.name}</div>}</div>{!compact ? <div className="mt-1 truncate text-center text-xs font-bold">{card.name}</div> : null}</div>; }
+function DisplayStat({ label, value, tone = "text-white" }: { label: string; value: number; tone?: string }) { return <div className="rounded-lg border border-white/10 bg-black/35 p-2"><div className="text-[10px] font-black uppercase tracking-wider text-white/45">{label}</div><div className={cn("text-3xl font-black", tone)}>{value}</div></div>; }
+function DisplayOracleText({ text }: { text?: string }) { return text ? <div className="w-full max-w-md rounded-lg border border-white/15 bg-black/50 p-3 text-left text-sm font-semibold leading-5 text-white/85"><div className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Card text</div><div className="whitespace-pre-line">{text}</div></div> : null; }
+function phaseLabel(game: CommanderGame) { return game.hordePendingChoice ? "Choice pending" : game.hordeResolutionPhase.replace("_", " "); }
 
 function ArchenemyChatBubble({ game }: { game: CommanderGame }) {
   if (!game.archenemyMode || !game.archenemyAiEnabled || !game.archenemyAiTaunt) {
