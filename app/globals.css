@@ -263,6 +263,44 @@
   }
 }
 
+@keyframes horde-card-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-42px) scale(0.72) rotate(-7deg);
+    filter: blur(8px) brightness(1.5);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(7px) scale(1.05) rotate(2deg);
+    filter: blur(0) brightness(1.2);
+  }
+  78% {
+    transform: translateY(-3px) scale(0.99) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+    filter: blur(0) brightness(1);
+  }
+}
+
+@keyframes horde-card-glow {
+  0% {
+    box-shadow: 0 0 0 rgb(248 113 113 / 0);
+  }
+  45% {
+    box-shadow: 0 0 34px rgb(248 113 113 / 0.8), 0 0 72px rgb(244 184 64 / 0.28);
+  }
+  100% {
+    box-shadow: 0 0 0 rgb(248 113 113 / 0);
+  }
+}
+
+@keyframes horde-resolution-dialog {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .life-gain-pulse {
   animation: life-gain-pulse 850ms ease-out;
 }
@@ -317,6 +355,25 @@
 .variant-card-reveal {
   animation: variant-card-reveal 720ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
   transform-origin: center;
+}
+
+.horde-card-reveal {
+  animation: horde-card-drop 720ms cubic-bezier(0.2, 0.9, 0.25, 1) both, horde-card-glow 1100ms ease-out both;
+  transform-origin: center bottom;
+}
+
+.horde-resolution-dialog {
+  animation: horde-resolution-dialog 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .horde-card-reveal {
+    animation: none;
+  }
+
+  .horde-resolution-dialog {
+    animation: none;
+  }
 }
 
 .scheme-card-reveal {

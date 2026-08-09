@@ -867,6 +867,12 @@ function ControlSidebar({
             Games
           </Link>
         </Button>
+        <Button asChild variant="secondary" size="sm" className="justify-start">
+          <Link href="/horde">
+            <Skull className="h-4 w-4" />
+            Horde Mode
+          </Link>
+        </Button>
         <Button asChild variant="outline" size="sm" className="justify-start">
           <Link href="/login">
             <LogIn className="h-4 w-4" />
