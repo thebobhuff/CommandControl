@@ -1,6 +1,6 @@
 "use client";
 
-import { createAccessToken, createDefaultGame, createId, hydrateCommanderDamage, type CommanderGame } from "@/lib/commander";
+import { createAccessToken, createDefaultGame, createId, hydrateCommanderDamage, type CommanderGame, type GameMode, type SetupStatus } from "@/lib/commander";
 
 export { createAccessToken, createDefaultGame, createId };
 export type { CommanderGame, CommanderPlayer, VariantDeckCard } from "@/lib/commander";
@@ -21,6 +21,8 @@ export type SavedGameSummary = {
   control_token: string | null;
   created_at: string;
   updated_at: string;
+  mode?: GameMode;
+  setup_status?: SetupStatus;
 };
 
 export type GameAccess = {

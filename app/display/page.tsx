@@ -68,7 +68,7 @@ export default function DisplayPage() {
     return "grid-cols-1 md:grid-cols-2 md:grid-rows-2";
   }, [game.players.length]);
 
-  if (game.hordeMode) {
+  if (game.mode === "horde") {
     return <HordeDisplay game={game} connected={connected} />;
   }
 

@@ -26,7 +26,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("commander_games")
-    .select("id,name,is_active,display_token,control_token,created_at,updated_at")
+    .select("id,name,is_active,display_token,control_token,created_at,updated_at,state")
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -54,7 +54,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const ownedGames = (data ?? []).map((game) => ({ ...game, access_role: "owner" }));
+  const ownedGames = (data ?? []).map((game) => ({ ...summarizeGame(game), access_role: "owner" }));
   const invitedGames = admin && user.email ? await fetchInvitedGames(admin, user.id, user.email) : [];
 
   return NextResponse.json({ games: mergeGames(ownedGames, invitedGames) });
@@ -139,7 +139,7 @@ export async function PATCH(request: Request) {
     })
     .eq("id", body.id)
     .eq("owner_id", user.id)
-    .select("id,name,is_active,display_token,control_token,created_at,updated_at")
+    .select("id,name,is_active,display_token,control_token,created_at,updated_at,state")
     .single();
 
   if (error && isMissingTokenColumnError(error.message)) {
@@ -194,7 +194,22 @@ async function fetchInvitedGames(admin: NonNullable<ReturnType<typeof createAdmi
     .in("id", gameIds)
     .order("updated_at", { ascending: false });
 
-  return (data ?? []).map((game) => ({ ...game, access_role: "invited" }));
+  return (data ?? []).map((game) => ({ ...summarizeGame(game), access_role: "invited" }));
+}
+
+function summarizeGame(game: { id: string; name: string; is_active: boolean; display_token?: string | null; control_token?: string | null; created_at: string; updated_at: string; state?: unknown }) {
+  const state = game.state && typeof game.state === "object" ? game.state as { mode?: string; setupStatus?: string } : {};
+  return {
+    id: game.id,
+    name: game.name,
+    is_active: game.is_active,
+    display_token: game.display_token ?? null,
+    control_token: game.control_token ?? null,
+    created_at: game.created_at,
+    updated_at: game.updated_at,
+    mode: state.mode,
+    setup_status: state.setupStatus
+  };
 }
 
 function mergeGames<T extends { id: string }>(ownedGames: T[], invitedGames: T[]) {
