@@ -9,6 +9,10 @@ export async function updateSession(request: NextRequest) {
     request
   });
 
+  if (!supabaseUrl || !supabaseKey || !hasSupabaseAuthCookie(request)) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
     supabaseUrl!,
     supabaseKey!,
@@ -30,7 +34,31 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  try {
+    await withTimeout(supabase.auth.getUser(), 2500);
+  } catch {
+    // Middleware must not take the site down when auth is temporarily unavailable.
+  }
 
   return supabaseResponse;
+}
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"));
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => resolve(undefined as T), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
