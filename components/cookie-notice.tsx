@@ -23,13 +23,13 @@ export function CookieNotice() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-12px_36px_rgba(0,0,0,0.42)] backdrop-blur">
+    <div role="region" aria-label="Essential cookies" className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-12px_36px_rgba(0,0,0,0.42)] backdrop-blur">
       <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm leading-6 text-muted-foreground">
-          Commander Control uses essential cookies for login sessions, profile access, game links, and table preferences.
+        <p className="max-w-xl text-xs leading-5 text-muted-foreground">
+          Essential cookies keep you signed in and remember your table preferences.
         </p>
         <Button type="button" className="shrink-0" onClick={acceptCookies}>
-          Accept
+          Got it
         </Button>
       </div>
     </div>

@@ -92,11 +92,11 @@ export default async function AdminPage() {
   const stats = buildStats((visits ?? []) as SiteVisit[], totalVisits ?? 0);
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5">
         <InteriorNav />
-        <header className="rounded-lg border border-border bg-background/75 p-4 backdrop-blur">
+        <header className="workspace-header rounded-lg border border-border bg-background/75 p-4 backdrop-blur">
           <div className="flex items-center gap-2 text-primary">
             <BarChart3 className="h-5 w-5" />
             <span className="text-sm font-black uppercase tracking-wider">Admin</span>
@@ -213,7 +213,7 @@ function AdminShell({
   actionLabel?: string;
 }) {
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
       <section className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5">
         <InteriorNav />

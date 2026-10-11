@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ImageIcon, Loader2, Plus, UserRound } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
@@ -20,6 +21,7 @@ type PlayerProfile = {
 };
 
 export default function PlayersPage() {
+  const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -33,6 +35,7 @@ export default function PlayersPage() {
     const supabase = createClient();
     void supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? "");
+      setLoading(false);
       if (data.user) {
         void loadPlayers();
       }
@@ -116,16 +119,17 @@ export default function PlayersPage() {
   }
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5">
         <InteriorNav />
-        <header className="flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="workspace-header flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-black">Players</h1>
             <p className="mt-1 text-sm text-muted-foreground">{email || "Login to save players."}</p>
           </div>
         </header>
+        {!loading && !email ? <div className="game-empty"><p>Save your regular players, commanders, and card art for next game night.</p><div className="flex flex-wrap gap-3"><Button asChild><Link href="/login">Sign in</Link></Button><Button asChild variant="outline"><Link href="/tablet">Play a local game</Link></Button></div></div> : null}
 
         <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
           <div className="rounded-lg border border-border bg-card p-4">

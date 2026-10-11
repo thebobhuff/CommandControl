@@ -74,11 +74,11 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-5 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-5 px-4 py-5">
         <InteriorNav />
-        <div className="mx-auto w-full max-w-md rounded-lg border border-border bg-background/75 p-5 backdrop-blur">
+        <div className="auth-panel mx-auto my-8 max-w-lg">
           <div className="mb-5">
             <h1 className="text-3xl font-black">Reset password</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -91,6 +91,8 @@ export default function ResetPasswordPage() {
               <Input
                 id="new-password"
                 type="password"
+                autoComplete="new-password"
+                minLength={6}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="At least 6 characters"
@@ -102,6 +104,8 @@ export default function ResetPasswordPage() {
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
+                minLength={6}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder="Repeat your new password"
@@ -117,8 +121,8 @@ export default function ResetPasswordPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Update password
             </Button>
-            {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {message ? <p role="status" className="text-sm text-emerald-300">{message}</p> : null}
+            {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
           </div>
         </div>
       </section>

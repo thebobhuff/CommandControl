@@ -1,6 +1,6 @@
 {
   "name": "commander-control",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -21,6 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
+    "motion": "^14.1.0",
     "next": "^15.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

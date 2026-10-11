@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { GameLoading } from "@/components/game-loading";
 import {
   Crown,
   Bot,
@@ -44,6 +45,7 @@ import { cn } from "@/lib/utils";
 
 export default function TabletPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
+  const [ready, setReady] = useState(false);
   const [connected, setConnected] = useState(false);
   const [gameAccess, setGameAccess] = useState<GameAccess>(() => ({
     gameId: null,
@@ -54,6 +56,8 @@ export default function TabletPage() {
 
   useEffect(() => {
     let mounted = true;
+    setGame(loadGame());
+    setReady(true);
     const access = hydrateGameAccessFromUrl();
     setGameAccess(access);
 
@@ -287,8 +291,10 @@ export default function TabletPage() {
     return `/control?gameId=${encodeURIComponent(access.gameId)}&token=${encodeURIComponent(access.controlToken)}`;
   }, [gameAccess]);
 
+  if (!ready) return <GameLoading />;
+
   return (
-    <main className="fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
+    <main id="main-content" className="game-screen tablet-screen fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
       <header className="z-30 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-black/85 px-2 py-1.5 backdrop-blur sm:min-h-14 sm:px-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-emerald-400" : "bg-destructive")} />
@@ -325,10 +331,10 @@ export default function TabletPage() {
         onPlaneswalk={() => planeswalk()}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col p-1">
+      <div className="tablet-stage flex min-h-0 flex-1 flex-col p-2">
         <VariantDeckStrip game={game} />
         <ArchenemyMiniChat game={game} />
-        <section className={cn("grid min-h-0 flex-1 auto-rows-fr gap-1", gridClass)}>
+        <section className={cn("tablet-player-grid grid min-h-0 flex-1 auto-rows-fr gap-2", gridClass)}>
           {game.players.map((player) => (
             <TabletPlayerPanel
               key={player.id}
@@ -402,7 +408,7 @@ function TabletControlBar({
 }) {
   return (
     <div className="shrink-0 border-b border-white/10 bg-black/75 px-1.5 py-1.5 backdrop-blur">
-      <div className="flex items-center gap-1 overflow-x-auto">
+      <div aria-label="Table actions — scroll for more" tabIndex={0} className="flex items-center gap-1 overflow-x-auto">
         <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="h-8 shrink-0 px-2 text-xs">
           <RotateCcw className="h-4 w-4" />
           Reset
@@ -549,9 +555,9 @@ function shortName(name: string) {
   }
   const words = trimmed.split(/\s+/);
   if (words.length > 1 && words[0].toLowerCase() === "player") {
-    return `P${words[1]?.slice(0, 1) ?? ""}`.toUpperCase();
+    return `P${({ One: "1", Two: "2", Three: "3", Four: "4", Five: "5", Six: "6" } as Record<string, string>)[words[1]] ?? words[1]}`;
   }
-  return trimmed.slice(0, 6);
+  return trimmed.slice(0, 8);
 }
 
 function TabletPlayerPanel({
@@ -608,7 +614,7 @@ function TabletPlayerPanel({
   return (
     <article
       className={cn(
-        "relative isolate flex min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950",
+        "tablet-player relative isolate flex min-h-0 overflow-hidden rounded-xl border border-border bg-card",
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
         poisonBurst && "poison-pulse",
@@ -617,7 +623,7 @@ function TabletPlayerPanel({
       style={{
         backgroundImage: player.backgroundImage
           ? `linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.42)), url(${player.backgroundImage})`
-          : "linear-gradient(135deg, rgba(20,83,72,0.55), rgba(120,53,15,0.4), rgba(9,9,11,1))",
+          : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center"
       }}
@@ -634,7 +640,6 @@ function TabletPlayerPanel({
         onClick={() => onLife(player.id, 1)}
         aria-label={`Increase ${player.name} life`}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:44px_44px] opacity-25" />
       {eliminated ? <div className="absolute inset-0 bg-destructive/25" /> : null}
       {lifeBurst?.delta && lifeBurst.delta > 0 ? (
         <Star
@@ -716,7 +721,7 @@ function TabletPlayerPanel({
           )}
         >
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onPoison(player.id, -1)}>-</Button>
+            <Button size="sm" variant="outline" className="h-7 px-2" aria-label={`Remove poison for ${player.name}`} onClick={() => onPoison(player.id, -1)}>-</Button>
             <div className="relative flex items-center justify-center gap-1 text-xs font-black sm:text-sm">
               <Skull className="h-4 w-4 text-emerald-300" />
               Poison {player.poison}
@@ -730,24 +735,27 @@ function TabletPlayerPanel({
                 </span>
               ) : null}
             </div>
-            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onPoison(player.id, 1)}>+</Button>
+            <Button size="sm" variant="outline" className="h-7 px-2" aria-label={`Add poison for ${player.name}`} onClick={() => onPoison(player.id, 1)}>+</Button>
           </div>
 
-          <div className="grid max-h-24 gap-1 overflow-y-auto pr-1 sm:max-h-28">
-            <div className="grid grid-cols-3 gap-1">
+          <div className="tablet-player-counters grid max-h-24 gap-1 overflow-y-auto pr-1 sm:max-h-28">
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
               <MiniCounter
+                label="Experience"
                 icon={<Trophy className="h-3.5 w-3.5" />}
                 value={player.experience}
                 onMinus={() => onCounter(player.id, "experience", -1)}
                 onPlus={() => onCounter(player.id, "experience", 1)}
               />
               <MiniCounter
+                label="Energy"
                 icon={<Sparkles className="h-3.5 w-3.5" />}
                 value={player.energy}
                 onMinus={() => onCounter(player.id, "energy", -1)}
                 onPlus={() => onCounter(player.id, "energy", 1)}
               />
               <MiniCounter
+                label="Treasure"
                 icon={<Gem className="h-3.5 w-3.5" />}
                 value={player.treasure}
                 onMinus={() => onCounter(player.id, "treasure", -1)}
@@ -755,13 +763,13 @@ function TabletPlayerPanel({
               />
             </div>
             <div className="grid grid-cols-3 gap-1">
-              <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "isMonarch")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "ghost"} aria-label={`Monarch for ${player.name}`} aria-pressed={player.isMonarch} onClick={() => onStatus(player.id, "isMonarch")}>
                 <Crown className="h-3.5 w-3.5" />
               </Button>
-              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasInitiative")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "ghost"} aria-label={`Initiative for ${player.name}`} aria-pressed={player.hasInitiative} onClick={() => onStatus(player.id, "hasInitiative")}>
                 Init
               </Button>
-              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "ghost"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
+              <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "ghost"} aria-label={`City blessing for ${player.name}`} aria-pressed={player.hasCityBlessing} onClick={() => onStatus(player.id, "hasCityBlessing")}>
                 City
               </Button>
             </div>
@@ -771,8 +779,8 @@ function TabletPlayerPanel({
                 <div key={source.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1 text-xs">
                   <span className="truncate font-semibold">{source.name}</span>
                   <span className="w-7 text-center text-sm font-black">{player.commanderDamage[source.id] ?? 0}</span>
-                  <Button size="sm" className="h-7 px-2" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
-                  <Button size="sm" className="h-7 px-2" variant="ghost" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
+                  <Button size="sm" className="h-7 px-2" variant="ghost" aria-label={`Remove commander damage from ${source.name} to ${player.name}`} onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
+                  <Button size="sm" className="h-7 px-2" variant="ghost" aria-label={`Add commander damage from ${source.name} to ${player.name}`} onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
                 </div>
               ))}
           </div>
@@ -791,11 +799,13 @@ function Badge({ children, danger = false }: { children: React.ReactNode; danger
 }
 
 function MiniCounter({
+  label,
   icon,
   value,
   onMinus,
   onPlus
 }: {
+  label: string;
   icon: React.ReactNode;
   value: number;
   onMinus: () => void;
@@ -803,12 +813,11 @@ function MiniCounter({
 }) {
   return (
     <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-black/35 px-1 py-0.5 text-xs">
-      <button type="button" onClick={onMinus} className="rounded px-1">-</button>
+      <button type="button" aria-label={`Remove ${label.toLowerCase()}`} onClick={onMinus} className="counter-step rounded px-1">-</button>
       <span className="flex items-center justify-center gap-1 font-black">
-        {icon}
-        {value}
+        <span title={label} className="flex items-center gap-1">{icon}<span className="text-[10px] font-medium">{label === "Experience" ? "Exp" : label}</span>{value}</span>
       </span>
-      <button type="button" onClick={onPlus} className="rounded px-1">+</button>
+      <button type="button" aria-label={`Add ${label.toLowerCase()}`} onClick={onPlus} className="counter-step rounded px-1">+</button>
     </div>
   );
 }

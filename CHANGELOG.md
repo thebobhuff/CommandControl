@@ -14,6 +14,19 @@ Commander Control follows semantic versioning:
 
 - Nothing yet.
 
+## [0.4.0] - 2026-10-11
+
+### Changed
+
+- Rebuilt navigation, home, account, and game screens with a shared accessible design, beUI motion, and Aceternity components.
+- Improved sign-in forms, empty states, control labels, touch targets, and reduced-motion support.
+- Fixed setup and four-player tablet layouts at 1920×1080 so Commander damage remains visible.
+- Preserved the latest Horde, game-mode setup, and Archenemy AI features.
+
+### Fixed
+
+- Prevented initial game-state hydration mismatches on setup, tablet, and TV screens.
+
 ## [0.3.1] - 2026-07-19
 
 ### Added

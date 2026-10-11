@@ -71,11 +71,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5">
         <InteriorNav />
-        <header className="flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="workspace-header flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-black">Profile setup</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -97,6 +97,7 @@ export default function ProfilePage() {
             ) : null}
           </div>
         </header>
+        {!loading && !email ? <div className="game-empty"><p>Sign in to personalize your name, commander, and profile art.</p><div className="flex flex-wrap gap-3"><Button asChild><Link href="/login">Sign in</Link></Button><Button asChild variant="outline"><Link href="/tablet">Play a local game</Link></Button></div></div> : null}
 
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <div className="overflow-hidden rounded-lg border border-border bg-card">
