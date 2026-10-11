@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { GameLoading } from "@/components/game-loading";
 import { Bot, Cpu, Crown, Dices, ExternalLink, Eye, Flame, Gem, Ghost, MessageCircle, Moon, ScrollText, ShieldAlert, Skull, Slash, Sparkles, Star, Sun, Swords, TabletSmartphone, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +19,15 @@ import { cn } from "@/lib/utils";
 
 export default function DisplayPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
+  const [ready, setReady] = useState(false);
   const [connected, setConnected] = useState(false);
   const [displayQrUrl, setDisplayQrUrl] = useState("");
   const [, setClockTick] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    setGame(loadGame());
+    setReady(true);
     hydrateGameAccessFromUrl();
     setDisplayQrUrl(window.location.href);
 
@@ -103,8 +107,10 @@ export default function DisplayPage() {
     });
   }
 
+  if (!ready) return <GameLoading />;
+
   return (
-    <main className="fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
+    <main id="main-content" className="game-screen fixed-screen flex flex-col overflow-hidden bg-black text-foreground">
       <GameStatusBar
         game={game}
         connected={connected}
@@ -340,7 +346,7 @@ function GameStatusBar({
       <div className="flex h-full shrink-0 items-center gap-3 border-r border-white/10 pr-3 sm:pr-5">
         <span className={cn("h-2.5 w-2.5 rounded-full shadow-[0_0_14px_currentColor]", connected ? "bg-emerald-400 text-emerald-400" : "bg-destructive text-destructive")} />
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wider text-white/45 sm:text-xs">Commander Control</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-white/75 sm:text-xs">Commander Control</p>
           <p className="text-sm font-black sm:text-lg">{connected ? "Live Game" : "Offline Display"}</p>
         </div>
       </div>
@@ -397,7 +403,7 @@ function DisplayQrBarItem({ url }: { url: string }) {
       <img src={qrSrc} alt="View-only game QR code" className="h-11 w-11 rounded bg-white p-1" />
       <div className="hidden min-w-0 lg:block">
         <p className="text-[10px] font-black uppercase tracking-wider text-primary">Scan TV</p>
-        <p className="max-w-28 truncate text-[10px] font-semibold text-white/55">View-only link</p>
+        <p className="max-w-28 truncate text-[10px] font-semibold text-white/75">View-only link</p>
       </div>
     </div>
   );
@@ -408,7 +414,7 @@ function StatusItem({ label, value, icon }: { label: string; value: string; icon
     <div className="flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-md border border-white/10 bg-white/[0.07] px-3 backdrop-blur sm:h-14 sm:px-4">
       {icon ? <span className="shrink-0 text-primary">{icon}</span> : null}
       <div className="min-w-0">
-        <p className="text-[9px] font-black uppercase tracking-wider text-white/45 sm:text-[10px]">{label}</p>
+        <p className="text-[9px] font-black uppercase tracking-wider text-white/75 sm:text-[10px]">{label}</p>
         <p className="max-w-28 truncate text-sm font-black leading-tight sm:max-w-40 sm:text-lg">{value}</p>
       </div>
     </div>
@@ -460,7 +466,7 @@ function PlayerDisplay({
   return (
     <section
       className={cn(
-        "relative flex h-full min-h-0 overflow-hidden rounded-md border border-white/10 bg-zinc-950",
+        "relative flex h-full min-h-0 overflow-hidden rounded-xl border border-border bg-card",
         lifeBurst && lifeBurst.delta > 0 && "life-gain-pulse",
         lifeBurst && lifeBurst.delta < 0 && "life-loss-pulse",
         poisonBurst && "poison-pulse",
@@ -470,12 +476,11 @@ function PlayerDisplay({
       style={{
         backgroundImage: player.backgroundImage
           ? `linear-gradient(90deg, rgba(0,0,0,0.78), rgba(0,0,0,0.36)), url(${player.backgroundImage})`
-          : "linear-gradient(135deg, rgba(20,83,72,0.5), rgba(120,53,15,0.35), rgba(9,9,11,1))",
+          : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center"
       }}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:48px_48px] opacity-25" />
       {eliminated ? <div className="absolute inset-0 bg-destructive/25" /> : null}
       {isWinner ? (
         <>

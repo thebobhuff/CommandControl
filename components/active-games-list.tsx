@@ -14,6 +14,7 @@ export function ActiveGamesList() {
   useEffect(() => {
     void fetchSavedGames()
       .then((savedGames) => setGames(savedGames.filter((game) => game.is_active).slice(0, 4)))
+      .catch(() => setGames([]))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -22,9 +23,9 @@ export function ActiveGamesList() {
   }
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-3 pb-8">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">Active Games</h2>
+        <h2 className="text-xl font-display font-semibold text-muted-foreground">Active Games</h2>
         <Button asChild variant="ghost" size="sm">
           <Link href="/games">View all</Link>
         </Button>

@@ -30,8 +30,9 @@ Repository: https://github.com/thebobhuff/CommandControl.git
 - React 19
 - TypeScript
 - Tailwind CSS
-- ShadCN-style local UI primitives
-- Aceternity-inspired visual components
+- Shared accessible UI primitives and registered shadcn component sources
+- beUI motion buttons/navigation and Aceternity Bento Grid
+- Self-hosted DM Sans and Cormorant Garamond fonts
 - Supabase Auth and Postgres
 - Scryfall API
 - Lucide icons

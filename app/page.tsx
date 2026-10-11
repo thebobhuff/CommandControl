@@ -1,231 +1,60 @@
 import Link from "next/link";
-import { BookOpenCheck, Mail, Monitor, PlayCircle, Search, Tablet, TabletSmartphone } from "lucide-react";
-import { BackgroundBeams } from "@/components/aceternity/background-beams";
+import { ArrowRight, ArrowUpRight, Mail, Monitor, PlayCircle, Shield, ScrollText, Swords } from "lucide-react";
 import { ActiveGamesList } from "@/components/active-games-list";
 import { HomeNav } from "@/components/home-nav";
+import { ModeSelection } from "@/components/mode-selection";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/lib/site";
 
 export default function Home() {
-  const softwareApplicationJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: siteConfig.name,
-    applicationCategory: "GameApplication",
-    operatingSystem: "Web",
-    url: siteConfig.url,
-    description: siteConfig.description,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD"
-    },
-    featureList: [
-      "Tablet controller for Magic: The Gathering Commander games",
-      "TV display for life totals and commander damage",
-      "Saved player profiles with Scryfall card art",
-      "Archenemy mode with scheme tracking",
-      "Commander damage, poison, monarch, initiative, city blessing, and token counters",
-      "Shareable view-only game links"
-    ]
-  };
-
+  const jsonLd = { "@context": "https://schema.org", "@type": "SoftwareApplication", name: siteConfig.name, applicationCategory: "GameApplication", operatingSystem: "Web", url: siteConfig.url, description: siteConfig.description, offers: { "@type": "Offer", price: "0", priceCurrency: "USD" }, featureList: ["Tablet Commander life tracker", "TV display", "Saved player profiles with Scryfall art", "Commander damage", "Planechase and Archenemy", "Shareable view-only game links"] };
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
-      />
-      <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-4 sm:px-6">
+    <main id="main-content" className="home-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <div className="home-container">
         <HomeNav />
-
-        <div
-          className="relative isolate flex min-h-[calc(100svh-8.5rem)] overflow-hidden rounded-lg border border-border bg-zinc-950 bg-cover bg-center shadow-2xl"
-          style={{
-            backgroundImage:
-              "linear-gradient(90deg, rgba(5,7,12,0.92) 0%, rgba(5,7,12,0.74) 38%, rgba(5,7,12,0.2) 100%), url('/hero-commander-display.png')"
-          }}
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px] opacity-20" />
-          <div className="relative z-10 flex w-full flex-col justify-center gap-8 px-5 py-10 sm:px-8 lg:px-12">
-            <div className="max-w-3xl">
-              <h1 className="text-5xl font-black leading-tight text-foreground md:text-7xl">
-                MTG Commander life tracker for tablet and TV.
-              </h1>
-              <p className="mt-5 max-w-2xl text-lg font-medium text-white/78">
-                Run Magic: The Gathering Commander games from a tablet, show synchronized player boards on a TV, track commander damage, and save player profiles with Scryfall card art.
-              </p>
+        <section className="home-hero">
+          <div className="hero-copy">
+            <h1>Less counting.<br />More <em>Commander.</em></h1>
+            <p>Your MTG Commander life tracker for tablet and TV. Track the whole table, keep every counter in view, and get back to the game.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button asChild size="lg"><Link href="/tablet">Start playing <ArrowRight className="size-4" /></Link></Button>
+              <a href="#how-to" className="text-link px-2 py-3">See how it works <ArrowUpRight className="size-4" /></a>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg">
-                <Link href="/tablet">
-                  <Tablet className="h-5 w-5" />
-                  Tablet Mode
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="bg-black/45 backdrop-blur">
-                <Link href="/control">
-                  <TabletSmartphone className="h-5 w-5" />
-                  Tablet Control
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="secondary">
-                <Link href="/display">
-                  <Monitor className="h-5 w-5" />
-                  TV Display
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="ghost" className="bg-black/20 backdrop-blur">
-                <a href="mailto:bob@thebobhuff.com">
-                  <Mail className="h-5 w-5" />
-                  Support
-                </a>
-              </Button>
-            </div>
+            <p className="hero-note">Free to play. No account needed for local games.</p>
           </div>
-        </div>
-        <div className="pb-8">
-          <ActiveGamesList />
-        </div>
-        <section className="grid gap-4 rounded-lg border border-border bg-card/75 p-4 backdrop-blur">
-          <div className="flex items-center gap-3 text-primary">
-            <Search className="h-6 w-6" />
-            <h2 className="text-2xl font-black text-foreground md:text-3xl">Explore Commander tools</h2>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <DeepLinkCard href="/mtg-commander-life-tracker" title="MTG Commander Life Tracker" body="Tablet controls, TV display, player profiles, Scryfall art, and synced Commander table state." />
-            <DeepLinkCard href="/commander-damage-tracker" title="Commander Damage Tracker" body="Track per-opponent Commander damage alongside life totals, poison, counters, and lethal threats." />
-            <DeepLinkCard href="/planechase" title="Planechase Deck Runner" body="Load a planar deck, reveal planes, roll the planar die, and show rotated plane cards on-screen." />
-            <DeepLinkCard href="/archenemy" title="Archenemy Scheme Deck" body="Assign the archenemy, load schemes, set schemes in motion, and display active schemes as card art." />
+          <div className="hero-art">
+            <img src="/hero-commander-display.png" alt="Commander Control game display showing player boards and life totals" width="2048" height="1263" fetchPriority="high" />
+            <div className="hero-art-caption"><Monitor className="size-4 text-primary" /><span>The whole table. One shared view.</span></div>
           </div>
         </section>
-        <section id="how-to" className="grid gap-4 pb-10">
-          <div className="flex items-center gap-3 text-primary">
-            <BookOpenCheck className="h-6 w-6" />
-            <h2 className="text-2xl font-black text-foreground md:text-3xl">How to run a game</h2>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <HowToStep
-              step="1"
-              title="Create your profiles"
-              body="Log in, open Profiles, and save each regular player with a name, commander, and Scryfall profile image."
-              href="/players"
-              action="Profiles"
-            />
-            <HowToStep
-              step="2"
-              title="Start a game"
-              body="Open Games and create a game so the table state can sync between the control screen, tablet mode, and TV display."
-              href="/games"
-              action="Games"
-            />
-            <HowToStep
-              step="3"
-              title="Assign players"
-              body="Open Control, tap the wrench on each seat, then choose a saved profile from the Saved player dropdown."
-              href="/control"
-              action="Control"
-            />
-            <HowToStep
-              step="4"
-              title="Put the board on TV"
-              body="Use the TV link from Control, or open TV Display directly, for a full-screen view of life totals and commander damage."
-              href="/display"
-              action="TV Display"
-            />
-            <HowToStep
-              step="5"
-              title="Run the table"
-              body="Use Control for setup and detailed counters, or Tablet Mode for oversized tap targets during active play."
-              href="/tablet"
-              action="Tablet Mode"
-            />
-            <HowToStep
-              step="6"
-              title="Track Commander extras"
-              body="Use poison, commander damage, experience, energy, treasure, monarch, initiative, city blessing, turn timer, d20, and random player tools as needed."
-            />
-            <HowToStep
-              step="7"
-              title="How to: Commander"
-              body="Watch a Commander format walkthrough before starting a table, then use Control or Tablet Mode to run the game state."
-              videoHref="https://www.youtube.com/watch?v=eaNjXcAqCAY"
-              videoAction="Commander video"
-            />
-            <HowToStep
-              step="8"
-              title="How to: Planechase"
-              body="Learn the planar deck and planar die flow, then load Planechase in Control to reveal full-card planes on the shared display."
-              videoHref="https://www.youtube.com/watch?v=wC98RS2YvJk"
-              videoAction="Planechase video"
-            />
-            <HowToStep
-              step="9"
-              title="How to: Archenemy"
-              body="Learn the one-vs-many scheme deck flow, then load Archenemy in Control to set schemes in motion on the TV."
-              videoHref="https://www.youtube.com/watch?v=HRT9PeDnX1E"
-              videoAction="Archenemy video"
-            />
+        <ActiveGamesList />
+        <section id="play" className="home-section">
+          <div className="section-heading"><h2>Pick your setup.</h2><p>From a quick round to the full living-room experience.</p></div>
+          <ModeSelection />
+        </section>
+        <section className="variant-section home-section">
+          <div><h2>A little chaos<br />goes a long way.</h2><p className="mt-4 max-w-sm text-muted-foreground leading-7">Keep Commander damage, planar decks, and schemes alongside the game. Less bookkeeping. More table politics.</p></div>
+          <div className="variant-links">
+            <ToolLink href="/commander-damage-tracker" title="Commander damage" description="Track damage from every opponent." icon={<Swords className="size-5" />} />
+            <ToolLink href="/planechase" title="Planechase" description="Reveal planes and roll the planar die." icon={<ScrollText className="size-5" />} />
+            <ToolLink href="/archenemy" title="Archenemy" description="Set schemes in motion. Take on the table." icon={<Shield className="size-5" />} />
+            <Link href="/mtg-commander-life-tracker" className="text-link mt-4">Explore the life tracker <ArrowRight className="size-4" /></Link>
           </div>
         </section>
-      </section>
+        <section id="how-to" className="home-section how-to-section">
+          <div className="section-heading"><h2>Cards out. Game on.</h2><p>Three steps to a table that keeps up.</p></div>
+          <div className="how-to-grid">
+            <HowToStep step="1" title="Set your table" body="Open table setup, choose your starting life, and add your players. Sign in if you want to save games and profiles." href="/control" action="Table setup" />
+            <HowToStep step="2" title="Choose your screen" body="Play directly on a tablet, or open the TV display on another device for a shared view of the game." href="/display" action="TV display" />
+            <HowToStep step="3" title="Let the game unfold" body="Tap life totals, track Commander damage and poison, and mark the monarch without losing your place." href="/tablet" action="Tablet mode" />
+          </div>
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2"><a href="https://www.youtube.com/watch?v=eaNjXcAqCAY" target="_blank" rel="noreferrer" className="text-link"><PlayCircle className="size-4" />Learn Commander</a><a href="https://www.youtube.com/watch?v=wC98RS2YvJk" target="_blank" rel="noreferrer" className="text-link"><PlayCircle className="size-4" />Learn Planechase</a><a href="https://www.youtube.com/watch?v=HRT9PeDnX1E" target="_blank" rel="noreferrer" className="text-link"><PlayCircle className="size-4" />Learn Archenemy</a></div>
+        </section>
+        <footer className="home-footer"><span>Commander Control <span className="text-muted-foreground">by Shiny Spells!</span></span><a href="mailto:bob@thebobhuff.com" className="text-link"><Mail className="size-4" />Support</a></footer>
+      </div>
     </main>
   );
 }
-
-function DeepLinkCard({ href, title, body }: { href: string; title: string; body: string }) {
-  return (
-    <Link href={href} className="rounded-lg border border-border bg-background/70 p-4 transition hover:border-primary hover:bg-background">
-      <h3 className="text-base font-black">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
-    </Link>
-  );
-}
-
-function HowToStep({
-  step,
-  title,
-  body,
-  href,
-  action,
-  videoHref,
-  videoAction
-}: {
-  step: string;
-  title: string;
-  body: string;
-  href?: string;
-  action?: string;
-  videoHref?: string;
-  videoAction?: string;
-}) {
-  return (
-    <article className="flex min-h-44 flex-col justify-between gap-4 rounded-lg border border-border bg-card/85 p-4 backdrop-blur">
-      <div>
-        <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-black text-primary-foreground">
-            {step}
-          </span>
-          <h3 className="text-lg font-black">{title}</h3>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {href && action ? (
-          <Button asChild variant="outline" size="sm" className="w-fit">
-            <Link href={href}>{action}</Link>
-          </Button>
-        ) : null}
-        {videoHref && videoAction ? (
-          <Button asChild variant="secondary" size="sm" className="w-fit">
-            <a href={videoHref} target="_blank" rel="noreferrer">
-              <PlayCircle className="h-4 w-4" />
-              {videoAction}
-            </a>
-          </Button>
-        ) : null}
-      </div>
-    </article>
-  );
-}
+function ToolLink({ href, title, description, icon }: { href: string; title: string; description: string; icon: React.ReactNode }) { return <Link href={href} className="tool-link"><span className="tool-icon">{icon}</span><span><strong className="block font-medium">{title}</strong><span className="mt-1 block text-sm text-muted-foreground">{description}</span></span><ArrowUpRight className="ml-auto size-4 shrink-0 text-muted-foreground" /></Link>; }
+function HowToStep({ step, title, body, href, action }: { step: string; title: string; body: string; href: string; action: string }) { return <article className="how-to-step"><span className="step-number">{step}</span><h3>{title}</h3><p>{body}</p><Link href={href} className="text-link">{action}<ArrowRight className="size-4" /></Link></article>; }

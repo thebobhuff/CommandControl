@@ -5,6 +5,7 @@ import { KeyRound, Loader2, Mail, RotateCcw, UserPlus } from "lucide-react";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { InteriorNav } from "@/components/interior-nav";
 import { Button } from "@/components/ui/button";
+import { Button as MotionButton } from "@/components/motion/button/base";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/utils/supabase/client";
@@ -126,47 +127,54 @@ export default function LoginPage() {
     setMessage("Check your email for a password reset link.");
   }
 
-  function submitAuth() {
+  async function submitAuth() {
+    try {
     if (mode === "magic") {
-      void signIn();
+      await signIn();
       return;
     }
 
     if (mode === "reset") {
-      void sendPasswordReset();
+      await sendPasswordReset();
       return;
     }
 
     if (mode === "signup") {
-      void createAccount();
+      await createAccount();
       return;
     }
 
-    void signInWithPassword();
+    await signInWithPassword();
+    } catch {
+      setError("Could not connect. Check your connection and try again.");
+      setLoading(false);
+    }
   }
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-5 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-5 px-4 py-5">
         <InteriorNav />
-        <div className="mx-auto w-full max-w-md rounded-lg border border-border bg-background/75 p-5 backdrop-blur">
+        <div className="auth-layout">
+        <div className="auth-intro"><h2>Same table.<br /><em className="text-primary">Every game night.</em></h2><p>Save your regular players, bring their commanders along, and pick up your games across devices.</p><div className="mt-8 border-t border-border pt-5 text-sm text-muted-foreground">Just here to play? <a href="/tablet" className="text-link ml-1">Start a local game</a></div></div>
+        <div className="auth-panel">
           <div className="mb-5">
-            <h1 className="text-3xl font-black">Login</h1>
+            <h1>{mode === "signup" ? "Join the table." : mode === "reset" ? "Reset your password." : mode === "magic" ? "Get a sign-in link." : "Welcome back."}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Save Commander games and player profiles across devices.
             </p>
           </div>
-          <div className="space-y-3">
+          <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void submitAuth(); }}>
             <div className="grid grid-cols-3 gap-1 rounded-md border border-border bg-muted/30 p-1">
-              <Button type="button" size="sm" variant={mode === "password" ? "secondary" : "ghost"} onClick={() => setMode("password")}>
+              <Button type="button" size="sm" variant={mode === "password" ? "secondary" : "ghost"} aria-pressed={mode === "password"} onClick={() => { setMode("password"); setError(""); setMessage(""); }}>
                 Login
               </Button>
-              <Button type="button" size="sm" variant={mode === "signup" ? "secondary" : "ghost"} onClick={() => setMode("signup")}>
+              <Button type="button" size="sm" variant={mode === "signup" ? "secondary" : "ghost"} aria-pressed={mode === "signup"} onClick={() => { setMode("signup"); setError(""); setMessage(""); }}>
                 Sign up
               </Button>
-              <Button type="button" size="sm" variant={mode === "magic" ? "secondary" : "ghost"} onClick={() => setMode("magic")}>
-                Magic
+              <Button type="button" size="sm" variant={mode === "magic" ? "secondary" : "ghost"} aria-pressed={mode === "magic"} onClick={() => { setMode("magic"); setError(""); setMessage(""); }}>
+                Email link
               </Button>
             </div>
             <div className="space-y-2">
@@ -174,6 +182,8 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
+                required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
@@ -185,18 +195,17 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  minLength={mode === "signup" ? 6 : undefined}
+                  required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="At least 6 characters"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && email && password && !loading) {
-                      submitAuth();
-                    }
-                  }}
+
                 />
               </div>
             ) : null}
-            <Button className="w-full" onClick={submitAuth} disabled={!email || (mode !== "magic" && mode !== "reset" && !password) || loading}>
+            <MotionButton type="submit" className="w-full rounded-md focus-visible:ring-2 focus-visible:ring-ring" disabled={!email || (mode !== "magic" && mode !== "reset" && !password) || loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : mode === "reset" ? (
@@ -208,8 +217,8 @@ export default function LoginPage() {
               ) : (
                 <KeyRound className="h-4 w-4" />
               )}
-              {mode === "reset" ? "Send reset link" : mode === "magic" ? "Send magic link" : mode === "signup" ? "Create account" : "Login with password"}
-            </Button>
+              {mode === "reset" ? "Send reset link" : mode === "magic" ? "Send magic link" : mode === "signup" ? "Create account" : "Sign in"}
+            </MotionButton>
             <Button
               type="button"
               variant="ghost"
@@ -222,9 +231,10 @@ export default function LoginPage() {
             >
               {mode === "reset" ? "Back to login" : "Forgot your password?"}
             </Button>
-            {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          </div>
+            {message ? <p role="status" className="text-sm text-emerald-300">{message}</p> : null}
+            {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+          </form>
+        </div>
         </div>
       </section>
     </main>

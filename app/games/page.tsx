@@ -12,6 +12,7 @@ import {
   Eye,
   Gamepad2,
   History,
+  LogIn,
   MailPlus,
   Plus,
   RotateCcw,
@@ -189,11 +190,11 @@ export default function GamesPage() {
     .sort((left, right) => right - left)[0];
 
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <section className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5">
+      <section className="workspace relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5">
         <InteriorNav />
-        <header className="flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="workspace-header flex flex-col gap-3 rounded-lg border border-border bg-background/75 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-black">Games</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -201,20 +202,22 @@ export default function GamesPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setNewGameOpen(true)} disabled={!email}>
+            {email ? <Button onClick={() => setNewGameOpen(true)}>
               <Plus className="h-4 w-4" />
               New Game
-            </Button>
+            </Button> : null}
           </div>
         </header>
+
+        {!email && !loading ? <div className="game-empty"><h2 className="text-xl font-semibold text-foreground">Keep your game night together.</h2><p>Sign in to save games, invite players, and sync your table across devices. You can also jump into a local game right away.</p><div className="flex flex-wrap gap-3"><Button asChild><Link href="/login"><LogIn className="size-4" />Sign in</Link></Button><Button asChild variant="outline"><Link href="/tablet">Play a local game</Link></Button></div></div> : null}
 
         {error ? <p className="rounded-md border border-destructive bg-destructive/15 p-3 text-sm text-destructive">{error}</p> : null}
 
         {loading ? (
-          <div className="rounded-lg border border-border bg-card p-4">Loading...</div>
-        ) : (
+          <div role="status" className="grid animate-pulse gap-4 motion-reduce:animate-none"><span className="text-sm text-muted-foreground">Loading your games…</span><div className="h-24 rounded-xl bg-muted/40" /><div className="h-48 rounded-xl bg-muted/40" /></div>
+        ) : email ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="stat-row grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <StatTile icon={<BarChart3 className="h-4 w-4" />} label="Games played" value={games.length} />
               <StatTile icon={<Gamepad2 className="h-4 w-4" />} label="Active games" value={activeGames.length} />
               <StatTile icon={<CheckCircle2 className="h-4 w-4" />} label="Closed games" value={historicalGames.length} />
@@ -258,7 +261,7 @@ export default function GamesPage() {
               setGameClosed={setGameClosed}
             />
           </>
-        )}
+        ) : null}
       </section>
       <GameStartWizard open={newGameOpen} busy={creatingGame} onCancel={() => setNewGameOpen(false)} onCreate={(mode, name) => void newSavedGame(mode, name)} />
     </main>
@@ -267,7 +270,7 @@ export default function GamesPage() {
 
 function StatTile({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="stat-tile rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-primary">
         {icon}
         <span className="text-xs font-black uppercase tracking-wider">{label}</span>
@@ -307,7 +310,7 @@ function GameSection({
   setGameClosed: (game: SavedGameSummary, closed: boolean) => Promise<void>;
 }) {
   return (
-    <section className="space-y-3">
+    <section className="flex flex-col gap-3">
       <div>
         <div className="flex items-center gap-2 text-primary">
           {title === "Game history" ? <History className="h-4 w-4" /> : <Gamepad2 className="h-4 w-4" />}
@@ -334,7 +337,7 @@ function GameSection({
             />
           ))
         ) : (
-          <div className="rounded-lg border border-border bg-card p-4 text-muted-foreground">
+          <div className="game-empty md:col-span-2">
             <Save className="mb-3 h-5 w-5 text-primary" />
             {emptyText}
           </div>
@@ -434,6 +437,7 @@ function GameCard({
             <input
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               type="email"
+              aria-label={`Invite a player to ${game.name}`}
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
               placeholder="player@example.com"
@@ -442,7 +446,7 @@ function GameCard({
               Invite
             </Button>
           </div>
-          {inviteStatus ? <p className="mt-2 text-xs text-muted-foreground">{inviteStatus}</p> : null}
+          {inviteStatus ? <p role="status" className="mt-2 text-xs text-muted-foreground">{inviteStatus}</p> : null}
           {invites.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {invites.map((invite) => (

@@ -63,6 +63,7 @@ export function ScryfallPicker({
     <div className="space-y-3">
       <div className="flex gap-2">
         <Input
+          aria-label="Search Scryfall card art"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
@@ -72,11 +73,11 @@ export function ScryfallPicker({
           }}
           placeholder="Search Scryfall card art"
         />
-        <Button type="button" size="icon" onClick={() => void search()} aria-label="Search Scryfall">
+        <Button type="button" size="icon" onClick={() => void search()} aria-label="Search Scryfall" disabled={loading || !query.trim()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {cards.length > 0 ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {cards.map((card) => {

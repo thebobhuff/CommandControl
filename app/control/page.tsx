@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { GameLoading } from "@/components/game-loading";
 import {
   Crown,
   Copy,
@@ -31,6 +32,7 @@ import {
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { GlowingBorder } from "@/components/aceternity/glowing-border";
 import { GameStartWizard } from "@/components/game-start-wizard";
+import { InteriorNav } from "@/components/interior-nav";
 import { ScryfallPicker } from "@/components/scryfall-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +68,7 @@ type SavedPlayerProfile = {
 
 export default function ControlPage() {
   const [game, setGame] = useState<CommanderGame>(() => loadGame());
+  const [ready, setReady] = useState(false);
   const [serverStatus, setServerStatus] = useState("Local state loaded");
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
   const [setupPlayerId, setSetupPlayerId] = useState<string | null>(null);
@@ -81,6 +84,8 @@ export default function ControlPage() {
 
   useEffect(() => {
     let mounted = true;
+    setGame(loadGame());
+    setReady(true);
     const access = hydrateGameAccessFromUrl();
     setGameAccess(access);
     setSavedGameId(access.gameId ?? getCurrentGameId());
@@ -738,11 +743,14 @@ export default function ControlPage() {
     return `${window.location.origin}/tablet?gameId=${encodeURIComponent(gameAccess.gameId)}&token=${encodeURIComponent(gameAccess.controlToken)}`;
   }, [gameAccess.controlToken, gameAccess.gameId]);
 
+  if (!ready) return <GameLoading />;
+
   return (
-    <main className="safe-screen relative overflow-hidden bg-background">
+    <main id="main-content" className="control-screen safe-screen relative overflow-hidden bg-background">
       <BackgroundBeams />
-      <div className="relative z-10 mx-auto flex w-full max-w-[112rem] flex-col gap-2 px-2 py-2 sm:px-3 lg:flex-row">
-        <aside className="lg:sticky lg:top-2 lg:h-[calc(100vh-1rem)] lg:w-64 lg:shrink-0 xl:w-72">
+      <div className="control-nav relative z-10 mx-auto w-full max-w-[112rem] px-4 pb-4"><InteriorNav /></div>
+      <div className="control-workspace relative z-10 mx-auto flex w-full max-w-[112rem] flex-col gap-2 px-4 py-2 lg:flex-row">
+        <aside className="control-aside lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] lg:w-64 lg:shrink-0 xl:w-72">
           <ControlSidebar
             game={game}
             serverStatus={serverStatus}
@@ -786,8 +794,8 @@ export default function ControlPage() {
           />
         </aside>
 
-        <section className="grid min-w-0 flex-1 gap-2">
-          <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
+        <section className="control-players grid min-w-0 flex-1 gap-2">
+          <div className="grid content-start auto-rows-min gap-4 md:grid-cols-2 2xl:grid-cols-4">
             {game.players.map((player) => (
               <GlowingBorder key={player.id} className="min-w-0 self-start">
                 <PlayerControl
@@ -920,19 +928,19 @@ function ControlSidebar({
   }
 
   return (
-    <div className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background/85 p-3 backdrop-blur">
+    <div className="control-sidebar flex max-h-full flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-background/85 p-3 backdrop-blur">
       <div className="flex items-start gap-3">
         <TabletSmartphone className="mt-1 h-5 w-5 shrink-0 text-primary" />
         <div className="min-w-0">
-          <div className="text-sm font-black uppercase tracking-wider">Control</div>
-          <div className="mt-1 text-xs text-muted-foreground">{serverStatus}</div>
+          <h1 className="font-display text-2xl font-semibold">Table setup</h1>
+          <div role="status" className="mt-1 text-xs text-muted-foreground">{serverStatus}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" size="sm" onClick={onResetLifeTotals} className="justify-start">
           <RotateCcw className="h-4 w-4" />
-          Reset
+          Reset life
         </Button>
         <Button size="sm" variant="outline" onClick={onSaveCurrentGame} className="justify-start">
           <Save className="h-4 w-4" />
@@ -969,12 +977,12 @@ function ControlSidebar({
         <Button asChild variant="outline" size="sm" className="justify-start">
           <Link href="/login">
             <LogIn className="h-4 w-4" />
-            Login
+            Sign in
           </Link>
         </Button>
         <Button onClick={onAddPlayer} size="sm" className="justify-start">
           <UserPlus className="h-4 w-4" />
-          Player
+          Add player
         </Button>
       </div>
 
@@ -991,6 +999,9 @@ function ControlSidebar({
         />
       </div>
 
+      <details className="control-disclosure" open={game.hordeMode || game.archenemyMode || game.planechaseMode}>
+        <summary>Game variants</summary>
+        <div className="flex flex-col gap-3 pt-3">
       <div className="grid gap-2 rounded-md border border-primary/30 bg-primary/5 p-2">
         <div className="flex items-center justify-between">
           <Label>Current game mode</Label>
@@ -1193,6 +1204,9 @@ function ControlSidebar({
 
       {variantDeckStatus ? <div className="rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] font-semibold text-muted-foreground">{variantDeckStatus}</div> : null}
 
+        </div>
+      </details>
+
       <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" size="sm" onClick={onCycleDayNight}>
@@ -1310,6 +1324,7 @@ function PlayerControl({
         />
         <div className="min-w-0">
           <Input
+            aria-label={`Player name for ${player.name}`}
             id={`${player.id}-name`}
             value={player.name}
             onChange={(event) => onName(event.target.value)}
@@ -1436,37 +1451,40 @@ function PlayerControl({
       <div className="grid grid-cols-[auto_1fr] items-center gap-1.5">
         <div className="min-w-14 text-center text-4xl font-black leading-none">{player.life}</div>
         <div className="grid grid-cols-3 gap-1">
-          <Button size="sm" variant="destructive" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -10)}>-10</Button>
-          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -5)}>-5</Button>
-          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, -1)}>-1</Button>
-          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 1)}>+1</Button>
-          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 5)}>+5</Button>
-          <Button size="sm" className="h-7 px-1 text-xs" onClick={() => onLife(player.id, 10)}>+10</Button>
+          <Button size="sm" variant="destructive" className="h-7 px-1 text-xs" aria-label={`Lose 10 life for ${player.name}`} onClick={() => onLife(player.id, -10)}>-10</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" aria-label={`Lose 5 life for ${player.name}`} onClick={() => onLife(player.id, -5)}>-5</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" aria-label={`Lose 1 life for ${player.name}`} onClick={() => onLife(player.id, -1)}>-1</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" aria-label={`Gain 1 life for ${player.name}`} onClick={() => onLife(player.id, 1)}>+1</Button>
+          <Button size="sm" variant="outline" className="h-7 px-1 text-xs" aria-label={`Gain 5 life for ${player.name}`} onClick={() => onLife(player.id, 5)}>+5</Button>
+          <Button size="sm" className="h-7 px-1 text-xs" aria-label={`Gain 10 life for ${player.name}`} onClick={() => onLife(player.id, 10)}>+10</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-1">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-md bg-muted/30 px-1 py-1">
-          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" onClick={() => onPoison(player.id, -1)}>-</Button>
+          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" aria-label={`Remove poison for ${player.name}`} onClick={() => onPoison(player.id, -1)}>-</Button>
           <div className="flex items-center justify-center gap-1 text-xs font-black">
-            <Skull className="h-3.5 w-3.5 text-emerald-300" />
+            <Skull className="h-3.5 w-3.5 text-emerald-300" /><span className="text-[10px] font-medium">Poison</span>
             {player.poison}
           </div>
-          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" onClick={() => onPoison(player.id, 1)}>+</Button>
+          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs" aria-label={`Add poison for ${player.name}`} onClick={() => onPoison(player.id, 1)}>+</Button>
         </div>
         <CompactCounter
+          label="Experience"
           icon={<Trophy className="h-3.5 w-3.5 text-primary" />}
           value={player.experience}
           onMinus={() => onCounter(player.id, "experience", -1)}
           onPlus={() => onCounter(player.id, "experience", 1)}
         />
         <CompactCounter
+          label="Energy"
           icon={<Sparkles className="h-3.5 w-3.5 text-sky-300" />}
           value={player.energy}
           onMinus={() => onCounter(player.id, "energy", -1)}
           onPlus={() => onCounter(player.id, "energy", 1)}
         />
         <CompactCounter
+          label="Treasure"
           icon={<Gem className="h-3.5 w-3.5 text-amber-300" />}
           value={player.treasure}
           onMinus={() => onCounter(player.id, "treasure", -1)}
@@ -1481,16 +1499,16 @@ function PlayerControl({
             Archenemy
           </div>
         ) : null}
-        <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "outline"} onClick={() => onStatus(player.id, "isMonarch")}>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.isMonarch ? "secondary" : "outline"} aria-label={`Monarch for ${player.name}`} aria-pressed={player.isMonarch} onClick={() => onStatus(player.id, "isMonarch")}>
           <Crown className="h-4 w-4" />
         </Button>
-        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasInitiative")}>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasInitiative ? "secondary" : "outline"} aria-label={`Initiative for ${player.name}`} aria-pressed={player.hasInitiative} onClick={() => onStatus(player.id, "hasInitiative")}>
           Init
         </Button>
-        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "outline"} onClick={() => onStatus(player.id, "hasCityBlessing")}>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={player.hasCityBlessing ? "secondary" : "outline"} aria-label={`City blessing for ${player.name}`} aria-pressed={player.hasCityBlessing} onClick={() => onStatus(player.id, "hasCityBlessing")}>
           City
         </Button>
-        <Button size="sm" className="h-7 px-1 text-xs" variant={isWinner ? "secondary" : "outline"} onClick={onWinner}>
+        <Button size="sm" className="h-7 px-1 text-xs" variant={isWinner ? "secondary" : "outline"} aria-label={`Winner: ${player.name}`} aria-pressed={isWinner} onClick={onWinner}>
           <Trophy className="h-4 w-4" />
         </Button>
       </div>
@@ -1505,8 +1523,8 @@ function PlayerControl({
                 <span className="truncate text-xs">{source.name}</span>
                 <span className="w-7 text-center text-sm font-black">{player.commanderDamage[source.id] ?? 0}</span>
                 <div className="flex gap-1">
-                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
-                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
+                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" aria-label={`Remove commander damage from ${source.name} to ${player.name}`} onClick={() => onCommanderDamage(player.id, source.id, -1)}>-</Button>
+                  <Button size="sm" className="h-7 px-2 text-xs" variant="outline" aria-label={`Add commander damage from ${source.name} to ${player.name}`} onClick={() => onCommanderDamage(player.id, source.id, 1)}>+</Button>
                 </div>
               </div>
             ))}
@@ -1517,11 +1535,13 @@ function PlayerControl({
 }
 
 function CompactCounter({
+  label,
   icon,
   value,
   onMinus,
   onPlus
 }: {
+  label: string;
   icon: React.ReactNode;
   value: number;
   onMinus: () => void;
@@ -1529,12 +1549,11 @@ function CompactCounter({
 }) {
   return (
     <div className="grid grid-cols-[auto_1fr_auto] items-center rounded-md bg-muted/30 px-1 py-1 text-xs">
-      <button type="button" onClick={onMinus} className="rounded px-1 font-black">-</button>
+      <button type="button" aria-label={`Remove ${label.toLowerCase()}`} onClick={onMinus} className="counter-step rounded px-1 font-black">-</button>
       <span className="flex min-w-0 items-center justify-center gap-1 font-black">
-        {icon}
-        {value}
+        <span title={label} className="flex items-center gap-1">{icon}<span className="text-[10px] font-medium">{label === "Experience" ? "Exp" : label}</span>{value}</span>
       </span>
-      <button type="button" onClick={onPlus} className="rounded px-1 font-black">+</button>
+      <button type="button" aria-label={`Add ${label.toLowerCase()}`} onClick={onPlus} className="counter-step rounded px-1 font-black">+</button>
     </div>
   );
 }
