@@ -14,6 +14,12 @@ Commander Control follows semantic versioning:
 
 - Nothing yet.
 
+## [0.4.1] - 2026-10-11
+
+### Added
+
+- Preserved the draft Horde mode specification with its original requirements and acceptance criteria.
+
 ## [0.4.0] - 2026-10-11
 
 ### Changed
